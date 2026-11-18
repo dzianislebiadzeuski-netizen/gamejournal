@@ -1,0 +1,289 @@
+import { useEffect, useState } from 'preact/hooks';
+import { useStore, back, openSheet, updateGame, setStatus, startSession, findByIgdb, go } from '../lib/store.js';
+import { Cover, Icon, Status, Section, Cell, Info, ToggleRow, useTick, Back } from '../ui/kit.jsx';
+import {
+  timesCompleted, totalHours, currentHours, hltbHours, openPt, completed, activeMs, daysSince, isOnline,
+} from '../lib/model.js';
+import { fmtHours, fmtDate, fmtClock, fmtTime, relDay, todayISO, fmtHM, placeholderGradient, monthName } from '../lib/util.js';
+import { toggleSession, toggleFav, addSimilarToWish, removeFromWish } from '../lib/actions.js';
+import { enrich } from '../lib/enrich.js';
+import { coverUrl } from '../lib/igdb.js';
+import { dailyHours, sumRange } from '../lib/stats.js';
+
+function SessionButton({ g, children }) {
+  return (
+    <div class="row">
+      {g.active
+        ? <button class="btn btn-red" onClick={() => toggleSession(g.id)}><Icon n="stop" size={16} />Стоп <span class="mono">{fmtClock(activeMs(g))}</span></button>
+        : <button class="btn btn-primary" onClick={() => toggleSession(g.id)}><Icon n="play" size={18} />Сел играть</button>}
+      {children}
+    </div>
+  );
+}
+
+const Dots = ({ id }) => (
+  <button class="btn btn-glass btn-icon" aria-label="Ещё: отложить, бросить, удалить" onClick={() => openSheet('more', { id })}><Icon n="dots" size={20} /></button>
+);
+
+function Sessions({ g }) {
+  const list = [...(g.sessions || [])].reverse().slice(0, 6);
+  return (
+    <Section title="Сессии" right={<button class="link" onClick={() => openSheet('manual', { id: g.id })}>+ Добавить вручную</button>}>
+      {list.length ? (
+        <div class="col" style={{ gap: 0 }}>
+          {list.map((s) => (
+            <div class="ses">
+              <Icon n="clock" size={16} color="#8C93A1" />
+              <span style={{ flex: 1, fontWeight: 600 }}>{relDay(todayISO(new Date(s.start)))}
+                <span class="mono xs muted" style={{ marginLeft: 8 }}>{s.manual ? 'вручную' : `${fmtTime(s.start)}–${fmtTime(s.end)}`}</span>
+              </span>
+              <span class="mono" style={{ fontWeight: 600 }}>{fmtHM(s.end - s.start)}</span>
+            </div>
+          ))}
+        </div>
+      ) : <span class="small muted" style={{ fontSize: 13 }}>Жми «Сел играть», когда садишься играть, — время посчитается само.</span>}
+    </Section>
+  );
+}
+
+function Description({ g, lang }) {
+  const [orig, setOrig] = useState(lang === 'en');
+  const s = g.summary || {};
+  if (!s.en && !s.ru) return null;
+  const showRu = !orig && s.ru;
+  return (
+    <Section title="Описание" right={s.ru && s.en ? <button class="link" onClick={() => setOrig(!orig)}>{orig ? 'Перевод (RU)' : 'Оригинал (EN)'}</button> : null}>
+      <p class="desc" lang={showRu ? 'ru' : 'en'}>{showRu ? s.ru : s.en}</p>
+    </Section>
+  );
+}
+
+export function Similar({ g }) {
+  useStore();
+  const list = (g.similar || []).slice(0, 9);
+  if (!list.length) return <Section title="Похожие игры"><div class="dashed">{g.igdbId ? 'Подбираем похожие игры…' : 'Для игр, добавленных вручную, похожие не подбираются.'}</div></Section>;
+  return (
+    <Section title="Похожие игры" right={<span class="mono xs muted">по данным IGDB</span>}>
+      <div class="grid3" style={{ gap: 12 }}>
+        {list.map((s) => {
+          const ex = findByIgdb(s.igdbId);
+          const inWish = ex && ex.status === 'wish';
+          const src = coverUrl(s.coverId);
+          const open = () => (ex ? go('game', { id: ex.id }) : openSheet('add', { res: s }));
+          return (
+            <div class="tile">
+              <div class="cover" style={{ background: src ? '#1a1d25' : placeholderGradient(s.name) }}>
+                {src ? <img src={src} alt="" loading="lazy" /> : <div class="ph">{s.name}</div>}
+                <button aria-label={`Открыть: ${s.name}`} onClick={open} style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'none', border: 'none' }} />
+                {ex && !inWish ? (
+                  <span class="badge bl" style={{ color: '#C9B4FF' }}>в дневнике</span>
+                ) : (
+                  <button class="bm" aria-pressed={inWish ? 'true' : 'false'} aria-label={inWish ? 'Убрать из «Хочу пройти»' : 'В «Хочу пройти»'}
+                    onClick={() => (inWish ? removeFromWish(ex.id) : addSimilarToWish(s))}>
+                    <span><Icon n="book" size={14} sw={1.8} fill={inWish ? '#6CC0FF' : 'none'} color="#6CC0FF" /></span>
+                  </button>
+                )}
+              </div>
+              <button class="nm" style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: 'inherit', whiteSpace: 'normal', lineHeight: 1.3 }} onClick={open}>{s.name}</button>
+            </div>
+          );
+        })}
+      </div>
+    </Section>
+  );
+}
+
+function History({ g }) {
+  const pts = completed(g);
+  if (pts.length < 2 && !(pts[0] && pts[0].old)) return null;
+  return (
+    <Section title="Прохождения">
+      <div class="col" style={{ gap: 0 }}>
+        {pts.map((p, i) => (
+          <div class="ses">
+            <span class="mono xs muted" style={{ width: 22 }}>#{i + 1}</span>
+            <span style={{ flex: 1, fontWeight: 600 }}>{p.old || !p.end ? 'давно' : `${fmtDate(p.start)} — ${fmtDate(p.end, true)}`}</span>
+            <span class="mono" style={{ fontWeight: 600 }}>{p.hours ? fmtHours(p.hours) : '—'}</span>
+          </div>
+        ))}
+      </div>
+    </Section>
+  );
+}
+
+export function Game({ id }) {
+  const { db } = useStore();
+  const g = db.games[id];
+  useTick(!!(g && g.active));
+  useEffect(() => { if (g && g.igdbId) enrich(g.id); }, [id]);
+  if (!g) {
+    return (
+      <div class="screen no-nav">
+        <Back onClick={back} />
+        <Info>Этой игры больше нет в дневнике.</Info>
+      </div>
+    );
+  }
+  const n = timesCompleted(g);
+  const hl = hltbHours(g);
+  const p = openPt(g);
+  const total = totalHours(g) + activeMs(g) / 3600000;
+  const cur = currentHours(g) + activeMs(g) / 3600000;
+  const online = isOnline(g);
+  const meta = [(g.genres || []).slice(0, 3).join(' · '), g.year].filter(Boolean).join(' · ');
+
+  let stats = null;
+  let actions = null;
+  const s = g.status;
+
+  if (s === 'wish') {
+    stats = (
+      <div class="card glass"><div class="stats2">
+        <Cell l="По HLTB" v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (g.hltb.src === 'hltb' ? 'основной сюжет' : 'по данным IGDB') : 'данных нет'} />
+        <Cell l="В списке" v={`${daysSince(todayISO(new Date(g.addedAt)))} дн`} s={`с ${fmtDate(todayISO(new Date(g.addedAt)))}`} />
+      </div></div>
+    );
+    actions = (
+      <>
+        <ToggleRow on={g.top} onChange={(v) => updateGame(id, { top: v })} icon="flame" color="#FF7A92" title="Топ приоритет" sub="будет наверху «Хочу пройти»" />
+        <div class="row">
+          <button class="btn btn-primary" onClick={() => openSheet('start', { id })}><Icon n="play" size={18} />Начать прохождение</button>
+          <Dots id={id} />
+        </div>
+      </>
+    );
+  } else if (s === 'playing') {
+    stats = (
+      <div class="card glass">
+        <div class="stats3">
+          <Cell l="Наиграно" v={fmtHours(cur)} s={n ? `прохождение №${n + 1}` : 'по таймеру'} />
+          <Cell l="По HLTB" v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (cur < hl ? `осталось ~${fmtHours(hl - cur)}` : 'уже больше') : 'данных нет'} />
+          <Cell l="Начато" v={`${p ? daysSince(p.start) : 0} дн`} s={p ? `с ${fmtDate(p.start)}` : ''} />
+        </div>
+        {hl && <div class="prog"><i style={{ width: `${Math.min(100, (cur / hl) * 100)}%` }} /></div>}
+      </div>
+    );
+    actions = (
+      <div class="col" style={{ gap: 8 }}>
+        <SessionButton g={g}><Dots id={id} /></SessionButton>
+        <button class="btn btn-glass" style={{ flex: 'none' }} onClick={() => openSheet('finish', { id })}><Icon n="check" size={16} sw={2.2} />Закончить прохождение</button>
+      </div>
+    );
+  } else if (s === 'paused') {
+    stats = (
+      <div class="card glass">
+        <div class="stats3">
+          <Cell l="Наиграно" v={fmtHours(cur)} />
+          <Cell l="По HLTB" v={hl ? `~${fmtHours(hl)}` : '—'} s={hl && cur < hl ? `осталось ~${fmtHours(hl - cur)}` : ''} />
+          <Cell l="На паузе" v={`${daysSince(todayISO(new Date(g.statusAt)))} дн`} s={`с ${fmtDate(todayISO(new Date(g.statusAt)))}`} />
+        </div>
+        {hl && <div class="prog"><i style={{ width: `${Math.min(100, (cur / hl) * 100)}%` }} /></div>}
+      </div>
+    );
+    actions = (
+      <>
+        <Info icon="pause">«Продолжить» вернёт игру в «Играю сейчас», часы и дата начала сохранятся.</Info>
+        <div class="row">
+          <button class="btn btn-primary" onClick={() => setStatus(id, 'playing')}><Icon n="play" size={18} />Продолжить</button>
+          <Dots id={id} />
+        </div>
+      </>
+    );
+  } else if (s === 'dropped') {
+    stats = (
+      <div class="card glass"><div class="stats2">
+        <Cell l="Наиграно" v={fmtHours(total)} s="часы идут в статистику" />
+        <Cell l="Бросил" v={fmtDate(todayISO(new Date(g.statusAt)), false)} s={String(new Date(g.statusAt).getFullYear())} />
+      </div></div>
+    );
+    actions = (
+      <>
+        <div class="row">
+          <button class="btn btn-glass" onClick={() => setStatus(id, 'playing')}><Icon n="play" size={16} />Вернуться к игре</button>
+          <Dots id={id} />
+        </div>
+        <button class="row glass" style={{ justifyContent: 'space-between', minHeight: 52, padding: '0 16px', borderRadius: 16, color: 'inherit' }} onClick={() => openSheet('rating', { id })}>
+          <b style={{ fontSize: 14 }}>Оценка</b><span class="small muted" style={{ fontSize: 13 }}>{g.rating ? `${g.rating}/10` : 'поставить, если хочешь ›'}</span>
+        </button>
+      </>
+    );
+  } else if (s === 'done') {
+    const pts = completed(g);
+    const same = pts.length > 1 && pts.every((x) => x.hours === pts[0].hours);
+    stats = (
+      <div class="card glass"><div class="stats3">
+        <Cell l="Оценка" v={g.rating ? <>{g.rating}<span style={{ fontSize: 13, color: '#8C93A1' }}>/10</span></> : '—'} s="нажми, чтобы изменить" onClick={() => openSheet('rating', { id })} />
+        <Cell l="Прохождений" v={String(n)} s={pts[pts.length - 1] && pts[pts.length - 1].end ? `последнее: ${fmtDate(pts[pts.length - 1].end, true)}` : ''} />
+        <Cell l="Наиграно" v={fmtHours(total)} s={same ? `${fmtHours(pts[0].hours)} × ${pts.length}` : ''} />
+      </div></div>
+    );
+    actions = (
+      <div class="row">
+        <button class="btn btn-purple" style={{ flex: 1.3 }} onClick={() => openSheet('replay', { id })}><Icon n="repeat" size={16} sw={2} />Начать заново</button>
+        <button class={`btn ${g.replay ? 'btn-glass' : 'btn-glass'}`} aria-pressed={g.replay ? 'true' : 'false'}
+          style={g.replay ? { background: 'rgba(61,139,255,0.16)', borderColor: 'rgba(108,192,255,0.45)', color: '#D6ECFF', fontSize: 13 } : { fontSize: 13 }}
+          onClick={() => updateGame(id, { replay: !g.replay })}>
+          <Icon n="book" size={15} sw={1.8} fill={g.replay ? '#6CC0FF' : 'none'} color="#6CC0FF" />Хочу перепройти
+        </button>
+      </div>
+    );
+  } else if (s === 'rotation' || s === 'quit') {
+    const now = new Date();
+    const map = dailyHours([g]);
+    const month = sumRange(map, todayISO(new Date(now.getFullYear(), now.getMonth(), 1)), todayISO());
+    const year = sumRange(map, `${now.getFullYear()}-01-01`, todayISO());
+    stats = (
+      <div class="card glass"><div class="stats3">
+        <Cell l={monthName(now.getMonth())} v={fmtHours(month)} />
+        <Cell l={String(now.getFullYear())} v={fmtHours(year)} s="за год" />
+        <Cell l="Всего" v={fmtHours(total)} s={`с ${fmtDate(todayISO(new Date(g.addedAt)), true)}`} />
+      </div></div>
+    );
+    actions = s === 'rotation'
+      ? <SessionButton g={g}><button class="btn btn-glass" style={{ flex: '0 0 132px' }} onClick={() => setStatus(id, 'quit')}><Icon n="x" size={16} sw={2} />Забросил</button></SessionButton>
+      : <button class="btn btn-primary" style={{ flex: 'none' }} onClick={() => setStatus(id, 'rotation')}><Icon n="repeat" size={16} sw={2} />Вернуть в ротацию</button>;
+  }
+
+  return (
+    <>
+      <div class="gp-cover" aria-hidden="true">
+        <Cover g={g} style={{ width: '100%', height: '100%', border: 'none', borderRadius: 0 }} />
+      </div>
+      <div class="gp-top">
+        <Back onClick={back} />
+        <button class="round" aria-pressed={g.fav ? 'true' : 'false'} aria-label="Любимая" onClick={() => toggleFav(id)}>
+          <Icon n="heart" size={20} sw={1.8} fill={g.fav ? '#FF3D5E' : 'none'} color={g.fav ? '#FF3D5E' : '#E9ECF2'} />
+        </button>
+      </div>
+      <div class="gp-body">
+        <div class="col">
+          <div class="chips">
+            <Status s={s} label={s === 'done' && n > 1 ? `Пройдено ×${n}` : undefined} />
+            {online && <span class="plain">Сетевая</span>}
+            {g.platform && <span class="plain">{g.platform}</span>}
+            {s === 'playing' && n > 0 && <span class="plain">перепрохождение</span>}
+          </div>
+          <h1 class="gp-title">{g.name}</h1>
+          {meta && <div class="text2" style={{ fontSize: 13 }}>{meta}</div>}
+        </div>
+        {stats}
+        {actions}
+        {(s === 'playing' || online || s === 'paused' || s === 'dropped') && <Sessions g={g} />}
+        {online && <Info>У сетевых игр нет «пройдено». Только «в ротации» или «забросил», а часы считаются по сессиям.</Info>}
+        {(g.impressions || s === 'done') && (
+          <Section title="Мои впечатления" right={<button class="link" onClick={() => openSheet('impressions', { id })}>{g.impressions ? 'Изменить' : 'Написать'}</button>}>
+            {g.impressions
+              ? <div class="card glass" style={{ padding: '14px 16px', borderRadius: 18, gap: 8 }}><p class="desc" style={{ color: '#E1E5EC' }}>{g.impressions}</p></div>
+              : <div class="dashed">Что понравилось, что нет — пара строк для себя.</div>}
+          </Section>
+        )}
+        <History g={g} />
+        <Description g={g} lang={db.settings.lang} />
+        {n > 0 && !online && <Similar g={g} />}
+        {n === 0 && !online && g.igdbId && (
+          <Section title="Похожие игры"><div class="dashed">Похожие игры появятся,<br />когда пройдёшь эту</div></Section>
+        )}
+      </div>
+    </>
+  );
+}

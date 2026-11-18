@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">GameJournal</string>
+    <string name="title_activity_main">GameJournal</string>
+    <string name="package_name">com.dente.gamejournal</string>
+    <string name="custom_url_scheme">com.dente.gamejournal</string>
+</resources>

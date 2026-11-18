@@ -1,0 +1,16 @@
+{
+  "appId": "com.dente.gamejournal",
+  "appName": "GameJournal",
+  "webDir": "dist",
+  "backgroundColor": "#0C0E13",
+  "android": {
+    "backgroundColor": "#0C0E13"
+  },
+  "plugins": {
+    "SystemBars": {
+      "insetsHandling": "css",
+      "style": "DARK",
+      "initialViewportFitValueHint": "cover"
+    }
+  }
+}
