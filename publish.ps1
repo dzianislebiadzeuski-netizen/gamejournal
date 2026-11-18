@@ -1,6 +1,6 @@
 ﻿# GameJournal: публикация кода на GitHub и запуск сборки APK.
 # Запуск: двойной клик по "Опубликовать на GitHub.cmd" в этой же папке.
-$ErrorActionPreference = 'Stop'
+$ErrorActionPreference = 'Continue'
 Set-Location -LiteralPath $PSScriptRoot
 [Console]::OutputEncoding = [Text.Encoding]::UTF8
 
@@ -47,9 +47,9 @@ try {
 
   Say 'Сохраняю ключ подписи в секреты репозитория...'
   $b64 = (Get-Content -LiteralPath '_signing\keystore.b64' -Raw).Trim()
-  $pwd = (Get-Content -LiteralPath '_signing\password.txt' -Raw).Trim()
+  $kpass = (Get-Content -LiteralPath '_signing\password.txt' -Raw).Trim()
   gh secret set KEYSTORE_B64 --repo $repo --body $b64 | Out-Host
-  gh secret set KEYSTORE_PASSWORD --repo $repo --body $pwd | Out-Host
+  gh secret set KEYSTORE_PASSWORD --repo $repo --body $kpass | Out-Host
 
   Say 'Отправляю код на GitHub...'
   git remote remove origin 2>$null
