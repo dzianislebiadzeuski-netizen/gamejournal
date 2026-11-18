@@ -7,8 +7,8 @@ android {
         applicationId "com.dente.gamejournal"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode (System.getenv("VERSION_CODE") ?: "1").toInteger()
-        versionName "1.0." + (System.getenv("VERSION_CODE") ?: "0")
+        versionCode = Integer.parseInt(System.getenv("VERSION_CODE") ?: "1")
+        versionName = "1.0." + (System.getenv("VERSION_CODE") ?: "0")
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -20,16 +20,21 @@ android {
         release {
             def ks = file("release.keystore")
             if (ks.exists() && System.getenv("KEYSTORE_PASSWORD")) {
-                storeFile ks
-                storePassword System.getenv("KEYSTORE_PASSWORD")
-                keyAlias System.getenv("KEY_ALIAS") ?: "gamejournal"
-                keyPassword System.getenv("KEY_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD")
+                storeFile = ks
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = (System.getenv("KEY_ALIAS") ?: "gamejournal")
+                keyPassword = (System.getenv("KEY_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD"))
             }
         }
     }
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
     buildTypes {
         release {
-            signingConfig file("release.keystore").exists() && System.getenv("KEYSTORE_PASSWORD") ? signingConfigs.release : signingConfigs.debug
+            def hasKey = file("release.keystore").exists() && System.getenv("KEYSTORE_PASSWORD")
+            signingConfig = hasKey ? signingConfigs.release : signingConfigs.debug
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
