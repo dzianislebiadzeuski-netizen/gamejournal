@@ -51,7 +51,7 @@ export function Stats() {
           )) : <span class="small muted">Появятся, когда наберётся несколько игр с жанрами.</span>}
         </div>
 
-        <Section title="Любимые игры" right={s.favs.length ? <button class="link mono" onClick={() => { setLibTab('fav'); tab('library'); }}>все {s.favs.length} ♥</button> : null}>
+        <Section title="Любимые игры" right={s.favs.length ? <button class="link mono" onClick={() => { setLibTab('done'); tab('library'); }}>все {s.favs.length} ♥</button> : null}>
           {s.favs.length ? (
             <div class="grid4">
               {s.favs.slice(0, 4).map((g) => (

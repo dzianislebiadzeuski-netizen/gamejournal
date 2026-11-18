@@ -20,7 +20,7 @@ export function Onboard() {
       <h1 style={{ fontFamily: 'var(--unb)', fontSize: 44, fontWeight: 700, lineHeight: 1.02, letterSpacing: '-0.02em' }}>Game<br />Journal</h1>
       <p class="text2" style={{ fontSize: 16, lineHeight: 1.5 }}>Что прошёл, что бросил, что впереди — и сколько часов на это ушло.</p>
       <div class="col" style={{ marginTop: 8 }}>
-        <Feature icon="lib" color="#6CC0FF" title="Вся библиотека" sub="пройдено, планы, отложено, брошено, любимые" />
+        <Feature icon="lib" color="#6CC0FF" title="Вся библиотека" sub="пройдено и любимые, планы, отложено, брошено" />
         <Feature icon="clock" color="#FF7A92" title="Таймер сессий" sub="«Сел играть» — и часы считаются сами" />
         <Feature icon="stat" color="#B394FF" title="Статистика" sub="сколько в день, за год, любимые жанры" />
       </div>

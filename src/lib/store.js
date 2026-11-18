@@ -19,7 +19,7 @@ function defaultDb() {
 }
 
 let db = defaultDb();
-let ui = { stack: [{ name: 'now' }], sheet: null, toast: null, libTab: 'done', tick: 0 };
+let ui = { stack: [{ name: 'now' }], sheet: null, toast: null, libTab: 'done', tick: 0, nav: 'tab', navId: 0 };
 const listeners = new Set();
 
 export const getDb = () => db;
@@ -271,22 +271,22 @@ function setUi(patch) {
 }
 
 export function go(name, params = {}) {
-  setUi({ stack: [...ui.stack, { name, params }], sheet: null });
+  setUi({ stack: [...ui.stack, { name, params }], sheet: null, nav: 'push', navId: ui.navId + 1 });
   window.scrollTo(0, 0);
 }
 
 export function replace(name, params = {}) {
-  setUi({ stack: [...ui.stack.slice(0, -1), { name, params }], sheet: null });
+  setUi({ stack: [...ui.stack.slice(0, -1), { name, params }], sheet: null, nav: 'push', navId: ui.navId + 1 });
   window.scrollTo(0, 0);
 }
 
 export function tab(name) {
-  setUi({ stack: [{ name }], sheet: null });
+  setUi({ stack: [{ name }], sheet: null, nav: 'tab', navId: ui.navId + 1 });
   window.scrollTo(0, 0);
 }
 
 export function resetTo(name, params = {}) {
-  setUi({ stack: [{ name: TABS.includes(name) ? name : 'now' }, ...(TABS.includes(name) ? [] : [{ name, params }])], sheet: null });
+  setUi({ stack: [{ name: TABS.includes(name) ? name : 'now' }, ...(TABS.includes(name) ? [] : [{ name, params }])], sheet: null, nav: 'tab', navId: ui.navId + 1 });
   window.scrollTo(0, 0);
 }
 
@@ -297,7 +297,7 @@ export function back() {
     return true;
   }
   if (ui.stack.length > 1) {
-    setUi({ stack: ui.stack.slice(0, -1) });
+    setUi({ stack: ui.stack.slice(0, -1), nav: 'pop', navId: ui.navId + 1 });
     return true;
   }
   if (ui.stack[0].name !== 'now' && ui.stack[0].name !== 'onboard') {

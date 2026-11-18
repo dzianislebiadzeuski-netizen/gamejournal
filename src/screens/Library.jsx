@@ -10,7 +10,6 @@ const TABS = [
   ['paused', 'Отложено'],
   ['dropped', 'Брошено'],
   ['replay', 'Перепройти'],
-  ['fav', 'Любимые'],
 ];
 
 const lastEnd = (g) => {
@@ -55,12 +54,16 @@ function Tile({ g, mode }) {
     bottom = fmtHours(totalHours(g));
     sub = (g.status === 'quit' ? 'забросил · ' : '') + fmtMonthYear(todayISO(new Date(g.statusAt)));
   }
+  const ring = g.fav && (mode === 'done' || mode === 'replay');
   return (
     <div class={`tile`}>
+      <div class={ring ? 'ring' : ''}>
       <Cover g={g}>
         <button aria-label={`Открыть: ${g.name}`} onClick={() => go('game', { id: g.id })} style={{ position: 'absolute', inset: 0, zIndex: 1, background: 'none', border: 'none' }} />
         {bottom && <span class="badge bl">{bottom}</span>}
-        {g.fav && mode !== 'wish' && <span class="hb" aria-label="Любимая"><Icon n="heart" size={14} sw={1.6} fill="#FF3D5E" color="#FF3D5E" /></span>}
+        {g.fav && mode !== 'wish' && (ring
+          ? <span class="hb grad" aria-label="Любимая"><Icon n="heart" size={13} sw={1.6} fill="#FFFFFF" color="#FFFFFF" /></span>
+          : <span class="hb" aria-label="Любимая"><Icon n="heart" size={14} sw={1.6} fill="#FF3D5E" color="#FF3D5E" /></span>)}
         {n > 1 && <span class="badge tl">×{n}</span>}
         {mode === 'wish' && (
           <button class={`fl ${g.top ? 'on' : ''}`} aria-pressed={g.top ? 'true' : 'false'} aria-label="Топ приоритет" onClick={() => updateGame(g.id, { top: !g.top })}>
@@ -73,6 +76,7 @@ function Tile({ g, mode }) {
           </button>
         )}
       </Cover>
+      </div>
       <button class="nm" style={{ background: 'none', border: 'none', padding: 0, textAlign: 'left', color: 'inherit' }} onClick={() => go('game', { id: g.id })}>{g.name}</button>
       {sub && <span class="sub">{sub}</span>}
     </div>
@@ -98,23 +102,47 @@ function TopCard({ g }) {
   );
 }
 
+function FavStrip({ games }) {
+  return (
+    <div class="col" style={{ gap: 10 }}>
+      <div class="fav-head">
+        <h2 class="sec"><span class="sec-ic" style={{ background: 'var(--grad)', color: '#fff' }}><Icon n="heart" size={13} sw={1.6} fill="#FFFFFF" color="#FFFFFF" /></span>Любимые</h2>
+        <span class="kicker">{games.length}</span>
+      </div>
+      <div class="fav-strip">
+        {games.map((g) => (
+          <button class="fav-card" onClick={() => go('game', { id: g.id })}>
+            <div class="ring">
+              <Cover g={g}>
+                {g.rating && <span class="badge bl">★ {g.rating}</span>}
+                <span class="hb grad"><Icon n="heart" size={13} sw={1.6} fill="#FFFFFF" color="#FFFFFF" /></span>
+              </Cover>
+            </div>
+            <span class="nm">{g.name}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const EMPTY = {
   done: 'Пока ничего не пройдено. Закончи игру из «Играю сейчас» или добавь уже пройденную через «+».',
   wish: 'Список планов пуст. Добавь игру через «+» на главной или закладкой в похожих играх.',
   paused: 'Отложенных игр нет.',
   dropped: 'Брошенных игр нет — и это хорошо.',
   replay: 'Отметь пройденную игру «Хочу перепройти», и она появится здесь.',
-  fav: 'Ставь ♥ в карточке игры — любимые соберутся здесь.',
 };
 
 export function Library() {
   const { db, ui } = useStore();
   const games = Object.values(db.games);
-  const t = ui.libTab;
+  const t = ui.libTab === 'fav' ? 'done' : ui.libTab;
   const list = filterTab(games, t);
   const counts = Object.fromEntries(TABS.map(([k]) => [k, filterTab(games, k).length]));
   const top = t === 'wish' ? list.filter((g) => g.top) : [];
   const rest = t === 'wish' ? list.filter((g) => !g.top) : list;
+  const favDone = t === 'done' ? list.filter((g) => g.fav).sort((a, b) => (b.rating || 0) - (a.rating || 0)) : [];
 
   let left = '';
   let right = gamesWord(list.length);
@@ -131,7 +159,6 @@ export function Library() {
     left = 'часы идут в статистику';
     right = `${gamesWord(list.length)} · ${fmtHours(list.reduce((a, g) => a + totalHours(g), 0))}`;
   } else if (t === 'replay') left = 'с меткой «Хочу перепройти»';
-  else if (t === 'fav') left = 'по оценке';
 
   return (
     <>
@@ -148,6 +175,7 @@ export function Library() {
             </button>
           ))}
         </div>
+        <div class="col fade-swap" key={t} style={{ gap: 16 }}>
         {list.length > 0 && <div class="between small muted"><span>{left}</span><span class="mono">{right}</span></div>}
         {t === 'wish' && list.length > 0 && (
           <div class="col">
@@ -157,7 +185,10 @@ export function Library() {
         )}
         {t === 'wish' && rest.length > 0 && <div class="between"><h2 class="sec">Остальное</h2><span class="kicker">{rest.length}</span></div>}
         {list.length === 0 && <Info>{EMPTY[t]}</Info>}
+        {t === 'done' && favDone.length > 0 && <FavStrip games={favDone} />}
+        {t === 'done' && favDone.length > 0 && <div class="between sec-head"><h2 class="sec">Все пройденные</h2><span class="kicker">{list.length}</span></div>}
         <div class="grid3">{rest.map((g) => <Tile g={g} mode={t} />)}</div>
+        </div>
       </div>
       <button class="fab" aria-label="Добавить игру" onClick={() => go('search')}><Icon n="plus" size={24} sw={2.4} /></button>
       <Nav active="library" />

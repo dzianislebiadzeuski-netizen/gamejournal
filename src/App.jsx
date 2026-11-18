@@ -33,7 +33,9 @@ export function App() {
   return (
     <div class="app">
       <Glows />
-      <Screen key={top.name + JSON.stringify(top.params || {})} {...(top.params || {})} />
+      <div class={`page page-${ui.nav}`} key={ui.navId}>
+        <Screen {...(top.params || {})} />
+      </div>
       {Sh && <Sh key={ui.sheet.name} {...ui.sheet.params} />}
       <Toast />
     </div>

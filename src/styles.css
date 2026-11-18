@@ -318,3 +318,31 @@ textarea.ta:focus { border-color: rgba(108,192,255,0.6); }
 .sec { display: flex; align-items: center; line-height: 1.2; }
 .sec-ic { flex-shrink: 0; vertical-align: 0; margin-right: 10px; }
 .sec-head { align-items: center; }
+
+/* ---------- page transitions ---------- */
+/* Only in-flow content is transformed: fixed nav/FAB/top bar must not get a transformed ancestor. */
+.page-push .screen, .page-push .gp-body, .page-push .gp-cover { animation: pushIn 0.32s cubic-bezier(.2,.8,.2,1) both; }
+.page-pop .screen, .page-pop .gp-body, .page-pop .gp-cover { animation: popIn 0.3s cubic-bezier(.2,.8,.2,1) both; }
+.page-tab .screen { animation: tabIn 0.28s cubic-bezier(.2,.8,.2,1) both; }
+.page-push .amb, .page-pop .amb, .page-push .gp-top, .page-pop .gp-top { animation: fade 0.3s ease-out both; }
+@keyframes pushIn { from { opacity: 0; transform: translateX(36px); } to { opacity: 1; transform: none; } }
+@keyframes popIn { from { opacity: 0; transform: translateX(-36px); } to { opacity: 1; transform: none; } }
+@keyframes tabIn { from { opacity: 0; transform: translateY(10px) scale(0.99); } to { opacity: 1; transform: none; } }
+.fade-swap { animation: tabIn 0.24s cubic-bezier(.2,.8,.2,1) both; }
+.nav button { transition: background 0.25s, color 0.25s; }
+@media (prefers-reduced-motion: reduce) {
+  .page-push .screen, .page-push .gp-body, .page-push .gp-cover, .page-pop .screen, .page-pop .gp-body, .page-pop .gp-cover, .page-tab .screen, .fade-swap { animation: fade 0.15s both; }
+}
+
+/* ---------- favorites inside "Пройдено" ---------- */
+.fav-strip { display: flex; gap: 12px; overflow-x: auto; margin: 0 -20px; padding: 4px 20px 6px; scroll-snap-type: x proximity; scroll-padding: 0 20px; }
+.fav-card { flex: 0 0 132px; scroll-snap-align: start; display: flex; flex-direction: column; gap: 8px; background: none; border: none; padding: 0; text-align: left; color: var(--text); }
+.ring { padding: 2px; border-radius: 18px; background: var(--grad); box-shadow: 0 8px 22px rgba(0,0,0,0.35); }
+.ring .cover { border-radius: 16px; border: none; }
+.fav-card .cover { width: 100%; aspect-ratio: 3 / 4; }
+.fav-card .nm { font-size: 13px; font-weight: 700; line-height: 1.25; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.tile .ring { border-radius: 16px; }
+.tile .ring .cover { border-radius: 14px; }
+.hb.grad { background: var(--grad); }
+.fav-head { display: flex; align-items: center; justify-content: space-between; }
+.fav-head h2 { display: flex; align-items: center; }
