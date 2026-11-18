@@ -22,12 +22,13 @@ function Header({ res }) {
   );
 }
 
-// "Уже прошёл": dates (or "давно"), hours, times, rating, impressions.
-export function AddDone({ res, platform }) {
+// "Уже прошёл" / "Бросил": dates (or "давно"), hours, rating, impressions.
+export function AddDone({ res, platform, mode = 'done' }) {
+  const dropped = mode === 'dropped';
   const [old, setOld] = useState(false);
   const [start, setStart] = useState(todayISO(new Date(Date.now() - 14 * 86400000)));
   const [end, setEnd] = useState(todayISO());
-  const [hours, setHours] = useState(20);
+  const [hours, setHours] = useState(dropped ? 5 : 20);
   const [times, setTimes] = useState(1);
   const [rating, setRating] = useState(null);
   const [imp, setImp] = useState('');
@@ -36,29 +37,32 @@ export function AddDone({ res, platform }) {
 
   const save = async () => {
     const h = Number(hours) || 0;
-    const n = Math.max(1, Number(times) || 1);
-    const pts = [];
-    for (let i = 0; i < n - 1; i++) pts.push({ start: null, end: null, hours: h, old: true });
-    pts.push(old ? { start: null, end: null, hours: h, old: true } : { start, end, hours: h, old: false });
-    const { coverData, ...rest } = res;
-    const g = addGame({
-      ...rest,
-      extId: res.extId || undefined,
-      type: 'game',
-      status: 'done',
-      platform: platform || '',
-      rating,
-      impressions: imp.trim(),
-      fav,
-      replay: rp,
-      playthroughs: pts,
-    });
+    const { coverData, online, ...rest } = res;
+    let data;
+    if (dropped) {
+      const [y, m, d] = end.split('-').map(Number);
+      const t = new Date(y, m - 1, d, 12).getTime();
+      data = {
+        status: 'dropped',
+        statusAt: old ? Date.now() : t,
+        baseHours: old ? h : 0,
+        sessions: !old && h > 0 ? [{ start: t, end: t + h * 3600000, manual: true }] : [],
+        playthroughs: [],
+      };
+    } else {
+      const n = Math.max(1, Number(times) || 1);
+      const pts = [];
+      for (let k = 0; k < n - 1; k++) pts.push({ start: null, end: null, hours: h, old: true });
+      pts.push(old ? { start: null, end: null, hours: h, old: true } : { start, end, hours: h, old: false });
+      data = { status: 'done', playthroughs: pts, replay: rp };
+    }
+    const g = addGame({ ...rest, extId: res.extId || undefined, type: 'game', platform: platform || '', rating, impressions: imp.trim(), fav, ...data });
     if (coverData) {
       const patch = await saveCoverBase64(g.id, coverData.split(',')[1]).catch(() => null);
       if (patch) updateGame(g.id, patch);
     }
     if (g.extId) enrich(g.id);
-    toast(`${g.name} — в «Пройдено»`);
+    toast(`${g.name} — в «${dropped ? 'Брошено' : 'Пройдено'}»`);
     replace('game', { id: g.id });
   };
 
@@ -66,25 +70,27 @@ export function AddDone({ res, platform }) {
     <div class="screen no-nav" style={{ gap: 14 }}>
       <div class="between" style={{ alignItems: 'center' }}>
         <Back onClick={back} />
-        <span style={{ fontFamily: 'var(--unb)', fontSize: 15, fontWeight: 600 }}>Уже прошёл</span>
+        <span style={{ fontFamily: 'var(--unb)', fontSize: 15, fontWeight: 600 }}>{dropped ? 'Бросил' : 'Уже прошёл'}</span>
         <span style={{ width: 44 }} />
       </div>
       <Header res={{ ...res, platform }} />
-      <div class="card glass">
-        <span class="lbl">Даты прохождения</span>
-        {!old && (
+      <div class="card glass tint">
+        <span class="lbl">{dropped ? 'Когда бросил' : 'Даты прохождения'}</span>
+        {!old && (dropped ? (
+          <Field label="Дата" id="d2" type="date" mono value={end} max={todayISO()} onInput={(v) => v && setEnd(v)} />
+        ) : (
           <div class="row" style={{ gap: 10 }}>
-            <Field label="Начал" id="d1" type="date" mono value={start} max={end} onInput={setStart} />
-            <Field label="Закончил" id="d2" type="date" mono value={end} max={todayISO()} onInput={setEnd} />
+            <Field label="Начал" id="d1" type="date" mono value={start} max={end} onInput={(v) => v && setStart(v)} />
+            <Field label="Закончил" id="d2" type="date" mono value={end} max={todayISO()} onInput={(v) => v && setEnd(v)} />
           </div>
-        )}
-        {old && <span class="small muted" style={{ fontSize: 13 }}>Без дат: игра попадёт в «Пройдено», но не в статистику по месяцам и годам.</span>}
-        <ToggleRow on={old} onChange={setOld} icon="cal" title="Давно, не помню даты" sub="не пойдёт в статистику по времени" />
+        ))}
+        {old && <span class="small muted" style={{ fontSize: 13 }}>Без даты: часы попадут в общий счёт игры, но не в статистику по месяцам и годам.</span>}
+        <ToggleRow on={old} onChange={setOld} icon="cal" title="Давно, не помню дату" sub="не пойдёт в статистику по времени" />
       </div>
       <div class="card glass">
         <div class="row" style={{ gap: 10 }}>
-          <Stepper id="h" label="Часов" value={hours} onChange={setHours} unit="ч" max={2000} />
-          <Stepper id="n" label="Раз пройдено" value={times} onChange={setTimes} min={1} max={50} unit="×" />
+          <Stepper id="h" label={dropped ? 'Успел наиграть' : 'Часов'} value={hours} onChange={setHours} unit="ч" max={2000} />
+          {!dropped && <Stepper id="n" label="Раз пройдено" value={times} onChange={setTimes} min={1} max={50} unit="×" />}
         </div>
       </div>
       <div class="card glass">
@@ -93,13 +99,15 @@ export function AddDone({ res, platform }) {
       </div>
       <div class="card glass">
         <div class="field">
-          <label class="lbl" for="imp">Впечатления (можно потом)</label>
-          <textarea id="imp" class="ta" value={imp} onInput={(e) => setImp(e.currentTarget.value)} placeholder="Что понравилось, что нет" />
+          <label class="lbl" for="imp">{dropped ? 'Почему бросил, впечатления (можно потом)' : 'Впечатления (можно потом)'}</label>
+          <textarea id="imp" class="ta" value={imp} onInput={(e) => setImp(e.currentTarget.value)} placeholder={dropped ? 'Пара строк для себя' : 'Что понравилось, что нет'} />
         </div>
         <ToggleRow on={fav} onChange={setFav} icon="heart" color="#FF3D5E" fillIcon title="Любимая" />
-        <ToggleRow on={rp} onChange={setRp} icon="book" color="#6CC0FF" fillIcon title="Хочу перепройти" />
+        {!dropped && <ToggleRow on={rp} onChange={setRp} icon="book" color="#6CC0FF" fillIcon title="Хочу перепройти" />}
       </div>
-      <button class="btn btn-primary" style={{ flex: 'none' }} onClick={save}><Icon n="check" size={18} sw={2.2} />Добавить в «Пройдено»</button>
+      <button class="btn btn-primary" style={{ flex: 'none' }} onClick={save}>
+        <Icon n="check" size={18} sw={2.2} />{dropped ? 'Добавить в «Брошено»' : 'Добавить в «Пройдено»'}
+      </button>
     </div>
   );
 }
@@ -135,7 +143,7 @@ export function AddManual({ name = '' }) {
   const draft = () => ({ name: title.trim(), genres: genre.trim() ? [genre.trim()] : [], coverData: cover });
 
   const save = async () => {
-    if (status === 'done') return replace('addDone', { res: draft(), platform });
+    if (status === 'done' || status === 'dropped') return replace('addDone', { res: draft(), platform, mode: status });
     const online = status === 'rotation';
     const { coverData, ...rest } = draft();
     const g = addGame({
@@ -172,14 +180,14 @@ export function AddManual({ name = '' }) {
       <Field label="Жанр" id="mg" value={genre} onInput={setGenre} placeholder="Например, RPG" />
       <div class="col" style={{ gap: 8 }}>
         <span class="lbl">Статус</span>
-        <ChipGroup value={status} onChange={setStatus} options={[['wish', 'Хочу пройти'], ['playing', 'Прохожу'], ['done', 'Пройдено'], ['rotation', 'Сетевая']]} />
+        <ChipGroup value={status} onChange={setStatus} options={[['wish', 'Хочу пройти'], ['playing', 'Прохожу'], ['done', 'Пройдено'], ['dropped', 'Брошено'], ['rotation', 'Сетевая']]} />
       </div>
       <div class="col" style={{ gap: 8 }}>
         <span class="lbl">Платформа</span>
         <ChipGroup value={platform} onChange={(v) => setPlatform(v === platform ? '' : v)} options={PLATFORMS} />
       </div>
       <button class="btn btn-primary" style={{ flex: 'none' }} disabled={!title.trim()} onClick={save}>
-        {status === 'done' ? 'Дальше: даты, часы, оценка' : <><Icon n="plus" size={18} sw={2.2} />Добавить</>}
+        {status === 'done' || status === 'dropped' ? 'Дальше: даты, часы, оценка' : <><Icon n="plus" size={18} sw={2.2} />Добавить</>}
       </button>
     </div>
   );

@@ -45,7 +45,7 @@ export function Icon({ n, size = 20, sw = 1.9, fill = 'none', color = 'currentCo
 }
 
 export function Glows() {
-  return <div class="glows" aria-hidden="true"><i class="g1" /><i class="g2" /><i class="g3" /></div>;
+  return <div class="glows" aria-hidden="true"><i class="g1" /><i class="g2" /><i class="g3" /><i class="g4" /></div>;
 }
 
 export function Cover({ g, size, style, class: cls, children, label = true }) {
@@ -172,7 +172,7 @@ export function Sheet({ title, sub, children, onClose = closeSheet }) {
 }
 
 export function Nav({ active }) {
-  const items = [['now', 'pad', 'Сейчас'], ['library', 'lib', 'Библиотека'], ['stats', 'stat', 'Статистика']];
+  const items = [['now', 'pad', 'Сейчас'], ['library', 'lib', 'Библиотека'], ['stats', 'stat', 'Статистика'], ['settings', 'gear', 'Настройки']];
   return (
     <nav class="nav">
       {items.map(([k, ic, l]) => (

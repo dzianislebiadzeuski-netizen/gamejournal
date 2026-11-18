@@ -4,7 +4,7 @@ import {
   addManualTime, setOpenStart, finishPlaythrough, startReplay, previousHours, back, getUi, openSheet,
 } from '../lib/store.js';
 import { Sheet, Icon, ChipGroup, Field, Stepper, Rating, ToggleRow, Info, Cell } from '../ui/kit.jsx';
-import { PLATFORMS, openPt, currentSessionsMs, hltbHours, hltbSrc, timesCompleted, totalHours, STATUS } from '../lib/model.js';
+import { PLATFORMS, openPt, currentSessionsMs, hltbHours, hltbSrc, timesCompleted, totalHours, STATUS, completed } from '../lib/model.js';
 import { todayISO, isoAddDays, fmtHM, fmtTime, fmtDate, fmtHours } from '../lib/util.js';
 import { addFromSearch } from '../lib/actions.js';
 import { coverUrl } from '../lib/catalog.js';
@@ -31,7 +31,7 @@ function AddSheet({ res }) {
   const [platform, setPlatform] = useState('');
   const src = coverUrl(res.cover, 'small');
   const add = () => {
-    if (status === 'done') return go('addDone', { res, platform });
+    if (status === 'done' || status === 'dropped') return go('addDone', { res, platform, mode: status });
     const g = addFromSearch(res, { status, top, platform });
     const where = { wish: '«Хочу пройти»', playing: '«Играю сейчас»', rotation: '«В ротации»' }[status];
     toast(`${g.name} — в ${where}`);
@@ -48,7 +48,7 @@ function AddSheet({ res }) {
       {status === k && children}
     </div>
   );
-  const label = { wish: 'Добавить в «Хочу пройти»', playing: 'Добавить в «Играю сейчас»', done: 'Дальше: даты, часы, оценка', rotation: 'Добавить в «В ротации»' }[status];
+  const label = { wish: 'Добавить в «Хочу пройти»', playing: 'Добавить в «Играю сейчас»', done: 'Дальше: даты, часы, оценка', dropped: 'Дальше: часы и дата', rotation: 'Добавить в «В ротации»' }[status];
   return (
     <Sheet title="Куда добавить?">
       <div class="row" style={{ gap: 14 }}>
@@ -67,6 +67,7 @@ function AddSheet({ res }) {
         </R>
         <R k="playing" title="Прохожу сейчас" sub="в «Играю сейчас», начало — сегодня" />
         <R k="done" title="Уже прошёл" sub="укажешь даты, часы и оценку" />
+        <R k="dropped" title="Бросил" sub="сколько успел наиграть и когда бросил" />
         <R k="rotation" title="Сетевая — играю" sub="в «В ротации», часы через таймер" />
       </div>
       <div class="col" style={{ gap: 8 }}>
@@ -189,7 +190,10 @@ function MoreSheet({ id }) {
         {(s === 'playing' || s === 'paused') && <Row icon="x" danger title="Бросить" sub="уйдёт в «Брошено», часы сохранятся" onClick={() => act('dropped', `${g.name} — в «Брошено»`)} />}
         {s === 'rotation' && <Row icon="x" title="Забросил" sub="убрать из «В ротации»" onClick={() => act('quit', `${g.name} — заброшена`)} />}
         {s === 'quit' && <Row icon="repeat" title="Вернуть в ротацию" onClick={() => act('rotation', `${g.name} — снова в ротации`)} />}
-        {s === 'done' && <Row icon="star" title="Изменить оценку" onClick={() => openSheet('rating', { id })} />}
+        {s === 'done' && <Row icon="repeat" title="Перепройти" sub={`начать прохождение №${timesCompleted(g) + 1}`} onClick={() => openSheet('replay', { id })} />}
+        {(s === 'done' || s === 'dropped') && <Row icon="star" title={g.rating ? `Оценка: ${g.rating}/10` : 'Поставить оценку'} sub="изменить" onClick={() => openSheet('rating', { id })} />}
+        {(s === 'done' || s === 'dropped') && <Row icon="clock" title="Часы и даты" sub={s === 'done' ? 'поправить часы и даты прохождений' : 'поправить наигранные часы'} onClick={() => openSheet('playthroughs', { id })} />}
+        {s === 'dropped' && <Row icon="play" title="Вернуться к игре" sub="снова в «Играю сейчас»" onClick={() => act('playing', `${g.name} — снова в «Играю сейчас»`)} />}
         {p && (
           <>
             <Row icon="cal" title="Изменить дату начала" sub={`сейчас: ${fmtDate(p.start)}`} expanded={open === 'date'} onClick={() => toggle('date')} />
@@ -294,13 +298,58 @@ function ReplaySheet({ id }) {
   const n = timesCompleted(g);
   const prev = previousHours(g);
   return (
-    <Sheet title="Начать заново" sub={`${g.name} · будет ${n + 1}-е прохождение`}>
-      <DatePick label="Дата начала" value={date} onChange={setDate} />
-      {g.replay && <ToggleRow on={unmark} onChange={setUnmark} icon="book" color="#6CC0FF" fillIcon title="Снять метку «Хочу перепройти»" sub="раз уж перепрохожу" />}
-      <Info icon="repeat">Игра переедет в «Играю сейчас». Когда закончишь — счётчик станет ×{n + 1}{prev ? `, часы прохождения подставятся из прошлого раза (${fmtHours(prev)})` : ''}. Оценку и впечатления можно будет обновить.</Info>
-      <button class="btn btn-primary" style={{ flex: 'none' }} onClick={() => { startReplay(id, date, unmark); toast(`${g.name} — в «Играю сейчас»`); closeSheet(); }}>
-        <Icon n="play" size={18} />Начать прохождение
+    <Sheet title="Перепройти" sub={`${g.name} · прохождение №${n + 1}`}>
+      <DatePick label="Когда начинаешь" value={date} onChange={setDate} />
+      {g.replay && (
+        <ToggleRow on={unmark} onChange={setUnmark} icon="book" color="#6CC0FF" fillIcon={false}
+          title="Убрать из «Хочу перепройти»" sub={unmark ? 'игра пропадёт из этого списка' : 'игра останется в списке «Перепройти»'} />
+      )}
+      <Info icon="repeat">Игра появится в «Играю сейчас». Прошлые прохождения, оценка и впечатления никуда не денутся. Когда закончишь, в карточке будет «Пройдено ×{n + 1}»{prev ? `, а часы нового прохождения предложим взять из прошлого раза — ${fmtHours(prev)}` : ''}.</Info>
+      <button class="btn btn-primary" style={{ flex: 'none' }} onClick={() => { startReplay(id, date, g.replay && unmark); toast(`${g.name} — в «Играю сейчас»`); closeSheet(); }}>
+        <Icon n="play" size={18} />Начать прохождение №{n + 1}
       </button>
+    </Sheet>
+  );
+}
+
+// ---------- Edit hours & dates of finished playthroughs ----------
+function PlaythroughsSheet({ id }) {
+  const g = getGame(id);
+  const [pts, setPts] = useState(g ? completed(g).map((p) => ({ ...p })) : []);
+  const [base, setBase] = useState(g ? g.baseHours || 0 : 0);
+  if (!g) return null;
+  const set = (i, patch) => setPts(pts.map((p, k) => (k === i ? { ...p, ...patch } : p)));
+  const save = () => {
+    const open = (g.playthroughs || []).filter((p) => !p.end && !p.old);
+    updateGame(id, { playthroughs: [...pts.map((p) => ({ ...p, hours: Number(p.hours) || 0 })), ...open], baseHours: Number(base) || 0 });
+    toast('Сохранено');
+    closeSheet();
+  };
+  return (
+    <Sheet title="Часы и даты" sub={g.name}>
+      {pts.length === 0 && g.status !== 'dropped' && <Info>У этой игры нет завершённых прохождений.</Info>}
+      {pts.map((p, i) => (
+        <div class="pt-row">
+          <div class="between"><b style={{ fontSize: 14 }}>Прохождение №{i + 1}</b>
+            {pts.length > 1 && <button class="link" style={{ color: '#FF8FA3' }} onClick={() => setPts(pts.filter((_, k) => k !== i))}>Удалить</button>}
+          </div>
+          {!p.old && p.start && p.end && (
+            <div class="row" style={{ gap: 10 }}>
+              <Field label="Начал" id={`ps${i}`} type="date" mono value={p.start} max={p.end} onInput={(v) => v && set(i, { start: v })} />
+              <Field label="Закончил" id={`pe${i}`} type="date" mono value={p.end} max={todayISO()} onInput={(v) => v && set(i, { end: v })} />
+            </div>
+          )}
+          {(p.old || !p.end) && <span class="small muted">давно, без дат</span>}
+          <Stepper id={`ph${i}`} label="Часов" value={p.hours ?? 0} onChange={(v) => set(i, { hours: v })} max={2000} unit="ч" />
+        </div>
+      ))}
+      {(g.status === 'dropped' || base > 0) && (
+        <div class="pt-row">
+          <b style={{ fontSize: 14 }}>Часы до начала учёта</b>
+          <Stepper id="base" label="Без даты" value={base} onChange={setBase} max={5000} unit="ч" />
+        </div>
+      )}
+      <button class="btn btn-primary" style={{ flex: 'none' }} onClick={save}><Icon n="check" size={18} sw={2.2} />Сохранить</button>
     </Sheet>
   );
 }
@@ -331,4 +380,5 @@ export const SHEETS = {
   rating: RatingSheet,
   replay: ReplaySheet,
   impressions: ImpressionsSheet,
+  playthroughs: PlaythroughsSheet,
 };

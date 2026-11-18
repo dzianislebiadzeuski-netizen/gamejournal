@@ -15,27 +15,26 @@ export function Stats() {
       <div class="screen" style={{ gap: 14 }}>
         <div class="head">
           <div>
-            <div class="kicker">{monthName(s.month)} {s.year}</div>
+            <div class="kicker c">{monthName(s.month)} {s.year}</div>
             <h1 class="title">Статистика</h1>
           </div>
-          <button class="round glass" aria-label="Настройки" onClick={() => go('settings')}><Icon n="gear" size={20} /></button>
         </div>
 
-        <div class="card glass" style={{ gap: 6, padding: 18, borderRadius: 24 }}>
+        <div class="card glass tint-r" style={{ gap: 6, padding: 18, borderRadius: 24 }}>
           <span class="text2" style={{ fontSize: 13, fontWeight: 600 }}>В день вы играете</span>
           <div class="row" style={{ alignItems: 'baseline' }}>
             <span class="mono" style={{ fontSize: 56, fontWeight: 600, lineHeight: 1, letterSpacing: '-0.02em' }}>{num(s.perDay)}</span>
-            <span style={{ fontFamily: 'var(--unb)', fontSize: 18, color: '#9ED3FF' }}>ч</span>
+            <span style={{ fontFamily: 'var(--unb)', fontSize: 18, color: '#FF9AB4' }}>ч</span>
           </div>
           <span class="mono xs muted">{fmtHours(s.monthHours)} за {daysWord(s.dayOfMonth)} {monthGen(s.month)}</span>
         </div>
 
         <div class="stats2" style={{ gap: 10 }}>
-          <div class="card glass" style={{ gap: 4, padding: '14px 16px', borderRadius: 20 }}>
+          <div class="card glass tint" style={{ gap: 4, padding: '14px 16px', borderRadius: 20 }}>
             <span class="text2" style={{ fontSize: 12, fontWeight: 600 }}>Часы за {s.year}</span>
             <span class="mono" style={{ fontSize: 28, fontWeight: 600 }}>{Math.round(s.yearHours)}</span>
           </div>
-          <button class="card glass" style={{ gap: 4, padding: '14px 16px', borderRadius: 20, textAlign: 'left', color: 'inherit' }} onClick={() => { setLibTab('done'); tab('library'); }}>
+          <button class="card glass tint" style={{ gap: 4, padding: '14px 16px', borderRadius: 20, textAlign: 'left', color: 'inherit' }} onClick={() => { setLibTab('done'); tab('library'); }}>
             <span class="text2" style={{ fontSize: 12, fontWeight: 600 }}>Пройдено в {s.year}</span>
             <span class="mono" style={{ fontSize: 28, fontWeight: 600 }}>{s.doneThisYear}</span>
           </button>
@@ -46,7 +45,7 @@ export function Stats() {
           {s.genres.length ? s.genres.map((g) => (
             <div class="bar">
               <span style={{ fontSize: 13, fontWeight: 600 }}>{g.name}</span>
-              <div class="tr"><i style={{ width: `${(g.pct / maxPct) * 100}%` }} /></div>
+              <div class="tr"><i style={{ width: `${(g.pct / maxPct) * 100}%`, background: 'var(--grad)' }} /></div>
               <span class="mono small" style={{ color: '#C3C8D2', textAlign: 'right' }}>{g.pct}%</span>
             </div>
           )) : <span class="small muted">Появятся, когда наберётся несколько игр с жанрами.</span>}

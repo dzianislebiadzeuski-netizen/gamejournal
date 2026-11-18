@@ -49,7 +49,7 @@ export function activeMs(g, now = Date.now()) {
 export function totalHours(g) {
   const pts = completed(g).reduce((a, p) => a + (p.hours || 0), 0);
   const ses = uncoveredSessions(g).reduce((a, s) => a + sessMs(s), 0) / 3600000;
-  return pts + ses;
+  return pts + ses + (g.baseHours || 0);
 }
 
 export function currentHours(g) {

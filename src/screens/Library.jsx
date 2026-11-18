@@ -1,4 +1,4 @@
-import { useStore, go, setLibTab } from '../lib/store.js';
+import { useStore, go, setLibTab, updateGame } from '../lib/store.js';
 import { Cover, Icon, Nav, Info } from '../ui/kit.jsx';
 import { timesCompleted, lastCompleted, totalHours, hltbHours, hltbSrc, completed } from '../lib/model.js';
 import { fmtHours, fmtMonthYear, fmtShort, gamesWord, todayISO } from '../lib/util.js';
@@ -21,7 +21,7 @@ const lastEnd = (g) => {
 export function filterTab(games, t) {
   switch (t) {
     case 'done':
-      return games.filter((g) => timesCompleted(g) > 0).sort((a, b) => lastEnd(b).localeCompare(lastEnd(a)));
+      return games.filter((g) => g.status === 'done').sort((a, b) => lastEnd(b).localeCompare(lastEnd(a)) || b.statusAt - a.statusAt);
     case 'wish':
       return games.filter((g) => g.status === 'wish').sort((a, b) => b.addedAt - a.addedAt);
     case 'paused':
@@ -29,7 +29,7 @@ export function filterTab(games, t) {
     case 'dropped':
       return games.filter((g) => g.status === 'dropped' || g.status === 'quit').sort((a, b) => b.statusAt - a.statusAt);
     case 'replay':
-      return games.filter((g) => g.replay && timesCompleted(g) > 0).sort((a, b) => (b.rating || 0) - (a.rating || 0));
+      return games.filter((g) => g.replay && g.status === 'done').sort((a, b) => (b.rating || 0) - (a.rating || 0));
     case 'fav':
       return games.filter((g) => g.fav).sort((a, b) => (b.rating || 0) - (a.rating || 0));
     default:
@@ -63,6 +63,11 @@ function Tile({ g, mode }) {
         {g.fav && mode !== 'wish' && <span class="hb" aria-label="Любимая"><Icon n="heart" size={14} sw={1.6} fill="#FF3D5E" color="#FF3D5E" /></span>}
         {n > 1 && <span class="badge tl">×{n}</span>}
         {mode === 'wish' && (
+          <button class={`fl ${g.top ? 'on' : ''}`} aria-pressed={g.top ? 'true' : 'false'} aria-label="Топ приоритет" onClick={() => updateGame(g.id, { top: !g.top })}>
+            <span><Icon n="flame" size={14} sw={2} color={g.top ? '#FFFFFF' : '#FF7A92'} /></span>
+          </button>
+        )}
+        {mode === 'wish' && (
           <button class="bm" aria-label="Убрать из «Хочу пройти»" onClick={() => removeFromWish(g.id)}>
             <span><Icon n="book" size={14} sw={1.8} fill="#6CC0FF" color="#6CC0FF" /></span>
           </button>
@@ -77,7 +82,8 @@ function Tile({ g, mode }) {
 function TopCard({ g }) {
   const h = hltbHours(g);
   return (
-    <button class="top-card glass" onClick={() => go('game', { id: g.id })}>
+    <div class="top-card glass card tint-r" style={{ flexDirection: 'row', padding: 10, position: 'relative' }}>
+      <button aria-label={`Открыть: ${g.name}`} onClick={() => go('game', { id: g.id })} style={{ position: 'absolute', inset: 0, background: 'none', border: 'none', zIndex: 1 }} />
       <Cover g={g} />
       <div class="col" style={{ flex: 1, minWidth: 0, justifyContent: 'center', gap: 8 }}>
         <span class="flame"><Icon n="flame" size={12} sw={2} />Топ приоритет</span>
@@ -85,7 +91,10 @@ function TopCard({ g }) {
         <span class="mono xs muted">{h ? `~${fmtHours(h)} по ${hltbSrc(g)}` : 'время прохождения: нет данных'}</span>
         <span class="small text2">{(g.genres || []).slice(0, 2).join(' · ')}</span>
       </div>
-    </button>
+      <button class="fl on" style={{ position: 'relative', alignSelf: 'flex-start', zIndex: 2 }} aria-label="Убрать из топ-приоритета" onClick={() => updateGame(g.id, { top: false })}>
+        <span><Icon n="flame" size={14} sw={2} color="#FFFFFF" /></span>
+      </button>
+    </div>
   );
 }
 
@@ -128,7 +137,7 @@ export function Library() {
     <>
       <div class="screen">
         <div>
-          <div class="kicker">{gamesWord(games.length)} в дневнике</div>
+          <div class="kicker c">{gamesWord(games.length)} в дневнике</div>
           <h1 class="title">Библиотека</h1>
         </div>
         <div class="chips scroll" role="tablist">
@@ -140,8 +149,13 @@ export function Library() {
           ))}
         </div>
         {list.length > 0 && <div class="between small muted"><span>{left}</span><span class="mono">{right}</span></div>}
-        {top.length > 0 && <div class="col">{top.map((g) => <TopCard g={g} />)}</div>}
-        {top.length > 0 && rest.length > 0 && <div class="between"><h2 class="sec">Остальное</h2></div>}
+        {t === 'wish' && list.length > 0 && (
+          <div class="col">
+            <div class="between"><h2 class="sec"><span class="sec-ic"><Icon n="flame" size={13} sw={2} /></span>Топ приоритет</h2><span class="kicker">{top.length}</span></div>
+            {top.length ? top.map((g) => <TopCard g={g} />) : <div class="dashed" style={{ textAlign: 'left' }}>Нажми огонёк на обложке игры, чтобы поднять её в топ. Здесь — то, что пройдёшь в первую очередь.</div>}
+          </div>
+        )}
+        {t === 'wish' && rest.length > 0 && <div class="between"><h2 class="sec">Остальное</h2><span class="kicker">{rest.length}</span></div>}
         {list.length === 0 && <Info>{EMPTY[t]}</Info>}
         <div class="grid3">{rest.map((g) => <Tile g={g} mode={t} />)}</div>
       </div>

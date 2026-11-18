@@ -139,7 +139,7 @@ export function Game({ id }) {
   if (s === 'wish') {
     stats = (
       <div class="card glass"><div class="stats2">
-        <Cell l={`По ${hltbSrc(g)}`} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (g.hltb.src === 'hltb' ? 'основной сюжет' : 'в среднем у игроков') : 'данных нет'} />
+        <Cell l={hl ? `По ${hltbSrc(g)}` : 'Длительность'} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (g.hltb.src === 'hltb' ? 'основной сюжет' : 'в среднем у игроков') : 'данных нет'} />
         <Cell l="В списке" v={`${daysSince(todayISO(new Date(g.addedAt)))} дн`} s={`с ${fmtDate(todayISO(new Date(g.addedAt)))}`} />
       </div></div>
     );
@@ -157,7 +157,7 @@ export function Game({ id }) {
       <div class="card glass">
         <div class="stats3">
           <Cell l="Наиграно" v={fmtHours(cur)} s={n ? `прохождение №${n + 1}` : 'по таймеру'} />
-          <Cell l={`По ${hltbSrc(g)}`} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (cur < hl ? `осталось ~${fmtHours(hl - cur)}` : 'уже больше') : 'данных нет'} />
+          <Cell l={hl ? `По ${hltbSrc(g)}` : 'Длительность'} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (cur < hl ? `осталось ~${fmtHours(hl - cur)}` : 'уже больше') : 'данных нет'} />
           <Cell l="Начато" v={`${p ? daysSince(p.start) : 0} дн`} s={p ? `с ${fmtDate(p.start)}` : ''} />
         </div>
         {hl && <div class="prog"><i style={{ width: `${Math.min(100, (cur / hl) * 100)}%` }} /></div>}
@@ -174,7 +174,7 @@ export function Game({ id }) {
       <div class="card glass">
         <div class="stats3">
           <Cell l="Наиграно" v={fmtHours(cur)} />
-          <Cell l={`По ${hltbSrc(g)}`} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl && cur < hl ? `осталось ~${fmtHours(hl - cur)}` : ''} />
+          <Cell l={hl ? `По ${hltbSrc(g)}` : 'Длительность'} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl && cur < hl ? `осталось ~${fmtHours(hl - cur)}` : ''} />
           <Cell l="На паузе" v={`${daysSince(todayISO(new Date(g.statusAt)))} дн`} s={`с ${fmtDate(todayISO(new Date(g.statusAt)))}`} />
         </div>
         {hl && <div class="prog"><i style={{ width: `${Math.min(100, (cur / hl) * 100)}%` }} /></div>}
@@ -192,7 +192,7 @@ export function Game({ id }) {
   } else if (s === 'dropped') {
     stats = (
       <div class="card glass"><div class="stats2">
-        <Cell l="Наиграно" v={fmtHours(total)} s="часы идут в статистику" />
+        <Cell l="Наиграно" v={fmtHours(total)} s="нажми, чтобы изменить" onClick={() => openSheet('playthroughs', { id })} />
         <Cell l="Бросил" v={fmtDate(todayISO(new Date(g.statusAt)), false)} s={String(new Date(g.statusAt).getFullYear())} />
       </div></div>
     );
@@ -214,18 +214,17 @@ export function Game({ id }) {
       <div class="card glass"><div class="stats3">
         <Cell l="Оценка" v={g.rating ? <>{g.rating}<span style={{ fontSize: 13, color: '#8C93A1' }}>/10</span></> : '—'} s="нажми, чтобы изменить" onClick={() => openSheet('rating', { id })} />
         <Cell l="Прохождений" v={String(n)} s={pts[pts.length - 1] && pts[pts.length - 1].end ? `последнее: ${fmtDate(pts[pts.length - 1].end, true)}` : ''} />
-        <Cell l="Наиграно" v={fmtHours(total)} s={same ? `${fmtHours(pts[0].hours)} × ${pts.length}` : ''} />
+        <Cell l="Наиграно" v={fmtHours(total)} s={same ? `${fmtHours(pts[0].hours)} × ${pts.length} · изменить` : 'нажми, чтобы изменить'} onClick={() => openSheet('playthroughs', { id })} />
       </div></div>
     );
     actions = (
-      <div class="row">
-        <button class="btn btn-purple" style={{ flex: 1.3 }} onClick={() => openSheet('replay', { id })}><Icon n="repeat" size={16} sw={2} />Начать заново</button>
-        <button class={`btn ${g.replay ? 'btn-glass' : 'btn-glass'}`} aria-pressed={g.replay ? 'true' : 'false'}
-          style={g.replay ? { background: 'rgba(61,139,255,0.16)', borderColor: 'rgba(108,192,255,0.45)', color: '#D6ECFF', fontSize: 13 } : { fontSize: 13 }}
-          onClick={() => updateGame(id, { replay: !g.replay })}>
-          <Icon n="book" size={15} sw={1.8} fill={g.replay ? '#6CC0FF' : 'none'} color="#6CC0FF" />Хочу перепройти
-        </button>
-      </div>
+      <>
+        <div class="row">
+          <button class="btn btn-purple" onClick={() => openSheet('replay', { id })}><Icon n="repeat" size={16} sw={2} />Перепройти</button>
+          <Dots id={id} />
+        </div>
+        <ToggleRow on={g.replay} onChange={(v) => updateGame(id, { replay: v })} icon="book" color="#6CC0FF" fillIcon title="Хочу перепройти" sub={g.replay ? 'игра в списке «Перепройти»' : 'добавить в список «Перепройти»'} />
+      </>
     );
   } else if (s === 'rotation' || s === 'quit') {
     const now = new Date();
@@ -240,12 +239,13 @@ export function Game({ id }) {
       </div></div>
     );
     actions = s === 'rotation'
-      ? <SessionButton g={g}><button class="btn btn-glass" style={{ flex: '0 0 132px' }} onClick={() => setStatus(id, 'quit')}><Icon n="x" size={16} sw={2} />Забросил</button></SessionButton>
-      : <button class="btn btn-primary" style={{ flex: 'none' }} onClick={() => setStatus(id, 'rotation')}><Icon n="repeat" size={16} sw={2} />Вернуть в ротацию</button>;
+      ? <SessionButton g={g}><button class="btn btn-glass" style={{ flex: '0 0 120px' }} onClick={() => setStatus(id, 'quit')}><Icon n="x" size={16} sw={2} />Забросил</button><Dots id={id} /></SessionButton>
+      : <div class="row"><button class="btn btn-primary" onClick={() => setStatus(id, 'rotation')}><Icon n="repeat" size={16} sw={2} />Вернуть в ротацию</button><Dots id={id} /></div>;
   }
 
   return (
     <>
+      <div class="amb" aria-hidden="true"><Cover g={g} label={false} /></div>
       <div class="gp-cover" aria-hidden="true">
         <Cover g={g} style={{ width: '100%', height: '100%', border: 'none', borderRadius: 0 }} />
       </div>

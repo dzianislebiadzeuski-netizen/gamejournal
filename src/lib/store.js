@@ -263,7 +263,7 @@ export function previousHours(g) {
 }
 
 // ---------------- navigation / UI ----------------
-const TABS = ['now', 'library', 'stats'];
+const TABS = ['now', 'library', 'stats', 'settings'];
 
 function setUi(patch) {
   ui = { ...ui, ...patch };

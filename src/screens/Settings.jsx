@@ -3,7 +3,7 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { useStore, back, go, setSettings, exportJson, importJson, toast } from '../lib/store.js';
-import { Icon, Back, ToggleRow, Info } from '../ui/kit.jsx';
+import { Icon, ToggleRow, Info, Nav } from '../ui/kit.jsx';
 import { fmtDate, todayISO, gamesWord } from '../lib/util.js';
 
 export function Settings() {
@@ -56,13 +56,14 @@ export function Settings() {
   };
 
   return (
-    <div class="screen no-nav" style={{ gap: 14 }}>
-      <div class="row" style={{ gap: 12 }}>
-        <Back onClick={back} />
-        <h1 style={{ fontFamily: 'var(--unb)', fontSize: 24, fontWeight: 600 }}>Настройки</h1>
+    <>
+    <div class="screen" style={{ gap: 14 }}>
+      <div>
+        <div class="kicker c">GameJournal 1.1</div>
+        <h1 class="title">Настройки</h1>
       </div>
 
-      <div class="card glass">
+      <div class="card glass tint">
         <span class="lbl">Резервная копия</span>
         <span class="text2" style={{ fontSize: 13, lineHeight: 1.45 }}>Весь дневник в одном файле. Отправь его себе в Telegram или на Google Диск.</span>
         <div class="row">
@@ -111,7 +112,9 @@ export function Settings() {
       </div>
 
       {!Capacitor.isNativePlatform() && <Info>Это веб-версия для проверки. Поиск по каталогу работает только в приложении на телефоне.</Info>}
-      <div class="center mono xs muted" style={{ paddingBottom: 10 }}>GameJournal 1.0 · данные только на телефоне</div>
+      <div class="center mono xs muted" style={{ paddingBottom: 10 }}>GameJournal 1.1 · данные только на телефоне</div>
     </div>
+    <Nav active="settings" />
+    </>
   );
 }
