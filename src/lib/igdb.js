@@ -10,7 +10,7 @@ export async function fetchToken(id, secret) {
   const url = `https://id.twitch.tv/oauth2/token?client_id=${encodeURIComponent(id)}&client_secret=${encodeURIComponent(secret)}&grant_type=client_credentials`;
   let r;
   try {
-    r = await request({ url, method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, data: '' });
+    r = await request({ url, method: 'POST', headers: { Accept: 'application/json' } });
   } catch {
     throw new IgdbError('Нет связи с Twitch. Проверь интернет.');
   }
