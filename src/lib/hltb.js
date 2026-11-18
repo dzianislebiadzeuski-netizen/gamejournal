@@ -1,6 +1,6 @@
 // HowLongToBeat has no official API. This is a best-effort client that discovers the current
 // search endpoint from the site's JS bundle. Any failure returns null and the caller falls back
-// to IGDB's time-to-beat data.
+// to RAWG's average playtime.
 import { request } from './http.js';
 
 const SITE = 'https://howlongtobeat.com';

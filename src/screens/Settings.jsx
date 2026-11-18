@@ -84,15 +84,15 @@ export function Settings() {
       </div>
 
       <div class="card glass" style={{ gap: 8 }}>
-        <span class="lbl">База игр</span>
+        <span class="lbl">Каталог игр</span>
         <div class="row" style={{ minHeight: 56, gap: 12 }}>
           <Icon n="key" color="#A9B0BD" />
-          <span class="col" style={{ flex: 1, gap: 2 }}><b style={{ fontSize: 14 }}>IGDB</b><span class="small muted">{s.igdbId ? `Client ID ··· ${s.igdbId.slice(-4)}` : 'не подключена'}</span></span>
-          {s.igdbId
+          <span class="col" style={{ flex: 1, gap: 2 }}><b style={{ fontSize: 14 }}>RAWG</b><span class="small muted">{s.rawgKey ? `ключ ··· ${s.rawgKey.slice(-4)}` : 'не подключён'}</span></span>
+          {s.rawgKey
             ? <span class="status st-wish"><Icon n="check" size={13} sw={2.4} />Подключено</span>
             : <span class="status st-dropped">Нет ключа</span>}
         </div>
-        <button class="btn btn-glass btn-sm" style={{ flex: 'none' }} onClick={() => go('onboardKey')}>{s.igdbId ? 'Изменить ключ' : 'Подключить'}</button>
+        <button class="btn btn-glass btn-sm" style={{ flex: 'none' }} onClick={() => go('onboardKey')}>{s.rawgKey ? 'Изменить ключ' : 'Подключить'}</button>
       </div>
 
       <div class="card glass" style={{ gap: 10 }}>
@@ -110,7 +110,7 @@ export function Settings() {
         <ToggleRow on={s.countOnline} onChange={(v) => setSettings({ countOnline: v })} icon="pad" color="#6CC0FF" title="Учитывать сетевые игры" sub="в «в день» и часах за год" />
       </div>
 
-      {!Capacitor.isNativePlatform() && <Info>Это веб-версия для проверки. Поиск по IGDB работает только в приложении на телефоне.</Info>}
+      {!Capacitor.isNativePlatform() && <Info>Это веб-версия для проверки. Поиск по каталогу работает только в приложении на телефоне.</Info>}
       <div class="center mono xs muted" style={{ paddingBottom: 10 }}>GameJournal 1.0 · данные только на телефоне</div>
     </div>
   );

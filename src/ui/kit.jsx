@@ -51,7 +51,7 @@ export function Glows() {
 export function Cover({ g, size, style, class: cls, children, label = true }) {
   const [err, setErr] = useState(false);
   const src = !err ? coverSrc(g, size) : null;
-  useEffect(() => setErr(false), [g && (g.coverFile || g.coverId || g.coverData)]);
+  useEffect(() => setErr(false), [g && (g.coverFile || g.cover || g.coverData)]);
   return (
     <div class={`cover ${cls || ''}`} style={{ background: src ? '#1a1d25' : placeholderGradient(g ? g.name : ''), ...style }}>
       {src ? <img src={src} alt="" loading="lazy" onError={() => setErr(true)} /> : label && <div class="ph" aria-hidden="true">{g ? g.name : ''}</div>}

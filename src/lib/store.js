@@ -14,7 +14,7 @@ function defaultDb() {
   return {
     version: 1,
     games: {},
-    settings: { igdbId: '', igdbSecret: '', token: '', tokenExp: 0, lang: 'ru', countOnline: true, lastBackup: null, onboarded: false },
+    settings: { rawgKey: '', lang: 'ru', countOnline: true, lastBackup: null, onboarded: false },
   };
 }
 
@@ -110,11 +110,11 @@ export function setSettings(patch) {
 // ---------------- games ----------------
 export const getGame = (id) => db.games[id];
 export const allGames = () => Object.values(db.games);
-export const findByIgdb = (igdbId) => allGames().find((g) => g.igdbId === igdbId);
+export const findByExt = (extId) => allGames().find((g) => g.extId === extId);
 
 export function addGame(g) {
   const game = {
-    id: g.id || (g.igdbId ? `g${g.igdbId}` : `m${uid()}`),
+    id: g.id || (g.extId ? `r${g.extId}` : `m${uid()}`),
     type: 'game',
     status: 'wish',
     top: false,
@@ -333,20 +333,20 @@ export function setLibTab(t) {
 
 // ---------------- backup ----------------
 export function exportJson() {
-  const { igdbSecret, token, tokenExp, ...settings } = db.settings;
+  const { rawgKey, ...settings } = db.settings;
   return JSON.stringify({ app: 'gamejournal', exportedAt: new Date().toISOString(), ...db, settings }, null, 1);
 }
 
 export function importJson(text) {
   const data = JSON.parse(text);
   if (!data || typeof data.games !== 'object') throw new Error('Это не файл копии GameJournal');
-  const keep = { igdbId: db.settings.igdbId, igdbSecret: db.settings.igdbSecret, token: db.settings.token, tokenExp: db.settings.tokenExp };
+  const keep = { rawgKey: db.settings.rawgKey };
   db = {
     ...defaultDb(),
     games: data.games,
     settings: { ...defaultDb().settings, ...(data.settings || {}), ...Object.fromEntries(Object.entries(keep).filter(([, v]) => v)), onboarded: true },
   };
-  // covers are re-fetched lazily from coverId
+  // covers are re-fetched lazily from cover
   for (const g of Object.values(db.games)) delete g.coverFile;
   commit();
   return Object.keys(db.games).length;

@@ -1,7 +1,7 @@
 import { useEffect } from 'preact/hooks';
 import { useStore, tab, replace } from '../lib/store.js';
 import { Cover, Icon, Cell } from '../ui/kit.jsx';
-import { lastCompleted, timesCompleted } from '../lib/model.js';
+import { lastCompleted, timesCompleted, hltbSrc } from '../lib/model.js';
 import { fmtHours, fmtDate, daysBetween, daysWord } from '../lib/util.js';
 import { enrich } from '../lib/enrich.js';
 import { Game, Similar } from './Game.jsx';
@@ -10,7 +10,7 @@ import { Game, Similar } from './Game.jsx';
 export function FinishDone({ id }) {
   const { db } = useStore();
   const g = db.games[id];
-  useEffect(() => { if (g && g.igdbId) enrich(g.id); }, [id]);
+  useEffect(() => { if (g && g.extId) enrich(g.id); }, [id]);
   if (!g) return <Game id={id} />;
   const p = lastCompleted(g) || {};
   const days = p.start && p.end ? daysBetween(p.start, p.end) + 1 : null;
@@ -28,7 +28,7 @@ export function FinishDone({ id }) {
         <h1 style={{ fontFamily: 'var(--unb)', fontSize: 22, fontWeight: 600, lineHeight: 1.2 }}>{g.name}</h1>
       </div>
       <div class="card glass"><div class="stats3">
-        <Cell l="Часы" v={fmtHours(p.hours || 0).replace(' ч', '')} s={g.hltb && g.hltb.main ? `~${fmtHours(g.hltb.main)} по HLTB` : 'часов'} />
+        <Cell l="Часы" v={fmtHours(p.hours || 0).replace(' ч', '')} s={g.hltb && g.hltb.main ? `~${fmtHours(g.hltb.main)} по ${hltbSrc(g)}` : 'часов'} />
         <Cell l="Дней" v={days ? String(days) : '—'} s={days ? daysWord(days).replace(/^\d+ /, '') : ''} />
         <Cell l="Оценка" v={g.rating ? String(g.rating) : '—'} s={g.fav ? '♥ любимая' : ''} />
       </div></div>

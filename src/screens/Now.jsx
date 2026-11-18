@@ -1,6 +1,6 @@
 import { useStore, go, tab, openSheet } from '../lib/store.js';
 import { Cover, Icon, Nav, Status, useTick, Section } from '../ui/kit.jsx';
-import { currentHours, hltbHours, lastActivity, openPt, primaryGenre, activeMs } from '../lib/model.js';
+import { currentHours, hltbHours, hltbSrc, lastActivity, openPt, primaryGenre, activeMs } from '../lib/model.js';
 import { fmtHours, fmtClock, fmtDate, monthName, monthPrep, gamesWord, todayISO } from '../lib/util.js';
 import { computeStats, sumRange, dailyHours } from '../lib/stats.js';
 import { toggleSession } from '../lib/actions.js';
@@ -36,7 +36,7 @@ function Hero({ g }) {
         <div class="col" style={{ gap: 6 }}>
           <div class="between mono small" style={{ color: '#A9B0BD' }}>
             <span style={{ color: '#E9ECF2' }}>{fmtHours(cur)} наиграно</span>
-            {hl && <span>~{fmtHours(hl)} по HLTB</span>}
+            {hl && <span>~{fmtHours(hl)} по {hltbSrc(g)}</span>}
           </div>
           {hl && <div class="prog"><i style={{ width: `${Math.min(100, (cur / hl) * 100)}%` }} /></div>}
         </div>
@@ -54,7 +54,7 @@ function GameRow({ g, sub }) {
   return (
     <div class={`grow glass ${g.active ? 'live' : ''}`}>
       <button style={{ background: 'none', border: 'none', padding: 0 }} aria-label={`Открыть: ${g.name}`} onClick={() => go('game', { id: g.id })}>
-        <Cover g={g} size="t_cover_small" label={false} />
+        <Cover g={g} size="small" label={false} />
       </button>
       <button class="info" onClick={() => go('game', { id: g.id })}>
         <b>{g.name}</b>

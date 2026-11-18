@@ -9,8 +9,8 @@
 
 - Web-приложение (Vite + Preact) внутри Capacitor 8 → нативный APK.
 - Данные: JSON-файл в приватной папке приложения (+ предыдущая версия как страховка), резервная копия — экспорт в файл.
-- Игры, обложки, жанры, похожие: IGDB API (ключ Twitch вводится в приложении).
-- Время прохождения: HowLongToBeat (неофициально, best-effort), запасной вариант — IGDB time-to-beat.
+- Игры, обложки, жанры, похожие: RAWG API (бесплатный ключ по почте, вводится в приложении). Похожие — по жанрам и тегам.
+- Время прохождения: HowLongToBeat (неофициально, best-effort), запасной вариант — средний playtime из RAWG.
 - Перевод описаний: Google ML Kit на устройстве.
 - Сборка APK: GitHub Actions (`.github/workflows/build.yml`) на каждый push в `main`, подпись постоянным ключом из секретов `KEYSTORE_B64` / `KEYSTORE_PASSWORD`.
 
@@ -18,6 +18,6 @@
 
 ```bash
 npm install
-npm run dev        # веб-версия для проверки интерфейса (без IGDB из-за CORS)
+npm run dev        # веб-версия для проверки интерфейса (без каталога из-за CORS)
 npm run build && npx cap sync android
 ```

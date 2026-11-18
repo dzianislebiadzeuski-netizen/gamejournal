@@ -1,13 +1,13 @@
 import { useEffect, useState } from 'preact/hooks';
-import { useStore, back, openSheet, updateGame, setStatus, startSession, findByIgdb, go } from '../lib/store.js';
+import { useStore, back, openSheet, updateGame, setStatus, startSession, findByExt, go } from '../lib/store.js';
 import { Cover, Icon, Status, Section, Cell, Info, ToggleRow, useTick, Back } from '../ui/kit.jsx';
 import {
-  timesCompleted, totalHours, currentHours, hltbHours, openPt, completed, activeMs, daysSince, isOnline,
+  timesCompleted, totalHours, currentHours, hltbHours, hltbSrc, openPt, completed, activeMs, daysSince, isOnline,
 } from '../lib/model.js';
 import { fmtHours, fmtDate, fmtClock, fmtTime, relDay, todayISO, fmtHM, placeholderGradient, monthName } from '../lib/util.js';
 import { toggleSession, toggleFav, addSimilarToWish, removeFromWish } from '../lib/actions.js';
 import { enrich } from '../lib/enrich.js';
-import { coverUrl } from '../lib/igdb.js';
+import { coverUrl, sourceUrl } from '../lib/catalog.js';
 import { dailyHours, sumRange } from '../lib/stats.js';
 
 function SessionButton({ g, children }) {
@@ -61,14 +61,14 @@ function Description({ g, lang }) {
 export function Similar({ g }) {
   useStore();
   const list = (g.similar || []).slice(0, 9);
-  if (!list.length) return <Section title="Похожие игры"><div class="dashed">{g.igdbId ? 'Подбираем похожие игры…' : 'Для игр, добавленных вручную, похожие не подбираются.'}</div></Section>;
+  if (!list.length) return <Section title="Похожие игры"><div class="dashed">{g.extId ? 'Подбираем похожие игры…' : 'Для игр, добавленных вручную, похожие не подбираются.'}</div></Section>;
   return (
-    <Section title="Похожие игры" right={<span class="mono xs muted">по данным IGDB</span>}>
+    <Section title="Похожие игры" right={<span class="mono xs muted">по данным RAWG</span>}>
       <div class="grid3" style={{ gap: 12 }}>
         {list.map((s) => {
-          const ex = findByIgdb(s.igdbId);
+          const ex = findByExt(s.extId);
           const inWish = ex && ex.status === 'wish';
-          const src = coverUrl(s.coverId);
+          const src = coverUrl(s.cover);
           const open = () => (ex ? go('game', { id: ex.id }) : openSheet('add', { res: s }));
           return (
             <div class="tile">
@@ -115,7 +115,7 @@ export function Game({ id }) {
   const { db } = useStore();
   const g = db.games[id];
   useTick(!!(g && g.active));
-  useEffect(() => { if (g && g.igdbId) enrich(g.id); }, [id]);
+  useEffect(() => { if (g && g.extId) enrich(g.id); }, [id]);
   if (!g) {
     return (
       <div class="screen no-nav">
@@ -139,7 +139,7 @@ export function Game({ id }) {
   if (s === 'wish') {
     stats = (
       <div class="card glass"><div class="stats2">
-        <Cell l="По HLTB" v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (g.hltb.src === 'hltb' ? 'основной сюжет' : 'по данным IGDB') : 'данных нет'} />
+        <Cell l={`По ${hltbSrc(g)}`} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (g.hltb.src === 'hltb' ? 'основной сюжет' : 'в среднем у игроков') : 'данных нет'} />
         <Cell l="В списке" v={`${daysSince(todayISO(new Date(g.addedAt)))} дн`} s={`с ${fmtDate(todayISO(new Date(g.addedAt)))}`} />
       </div></div>
     );
@@ -157,7 +157,7 @@ export function Game({ id }) {
       <div class="card glass">
         <div class="stats3">
           <Cell l="Наиграно" v={fmtHours(cur)} s={n ? `прохождение №${n + 1}` : 'по таймеру'} />
-          <Cell l="По HLTB" v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (cur < hl ? `осталось ~${fmtHours(hl - cur)}` : 'уже больше') : 'данных нет'} />
+          <Cell l={`По ${hltbSrc(g)}`} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (cur < hl ? `осталось ~${fmtHours(hl - cur)}` : 'уже больше') : 'данных нет'} />
           <Cell l="Начато" v={`${p ? daysSince(p.start) : 0} дн`} s={p ? `с ${fmtDate(p.start)}` : ''} />
         </div>
         {hl && <div class="prog"><i style={{ width: `${Math.min(100, (cur / hl) * 100)}%` }} /></div>}
@@ -174,7 +174,7 @@ export function Game({ id }) {
       <div class="card glass">
         <div class="stats3">
           <Cell l="Наиграно" v={fmtHours(cur)} />
-          <Cell l="По HLTB" v={hl ? `~${fmtHours(hl)}` : '—'} s={hl && cur < hl ? `осталось ~${fmtHours(hl - cur)}` : ''} />
+          <Cell l={`По ${hltbSrc(g)}`} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl && cur < hl ? `осталось ~${fmtHours(hl - cur)}` : ''} />
           <Cell l="На паузе" v={`${daysSince(todayISO(new Date(g.statusAt)))} дн`} s={`с ${fmtDate(todayISO(new Date(g.statusAt)))}`} />
         </div>
         {hl && <div class="prog"><i style={{ width: `${Math.min(100, (cur / hl) * 100)}%` }} /></div>}
@@ -280,9 +280,10 @@ export function Game({ id }) {
         <History g={g} />
         <Description g={g} lang={db.settings.lang} />
         {n > 0 && !online && <Similar g={g} />}
-        {n === 0 && !online && g.igdbId && (
+        {n === 0 && !online && g.extId && (
           <Section title="Похожие игры"><div class="dashed">Похожие игры появятся,<br />когда пройдёшь эту</div></Section>
         )}
+        {g.extId && <div class="center xs muted">Данные и изображения: <a href={sourceUrl(g.slug)}>RAWG</a></div>}
       </div>
     </>
   );

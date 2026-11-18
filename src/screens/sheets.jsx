@@ -4,10 +4,10 @@ import {
   addManualTime, setOpenStart, finishPlaythrough, startReplay, previousHours, back, getUi, openSheet,
 } from '../lib/store.js';
 import { Sheet, Icon, ChipGroup, Field, Stepper, Rating, ToggleRow, Info, Cell } from '../ui/kit.jsx';
-import { PLATFORMS, openPt, currentSessionsMs, hltbHours, timesCompleted, totalHours, STATUS } from '../lib/model.js';
+import { PLATFORMS, openPt, currentSessionsMs, hltbHours, hltbSrc, timesCompleted, totalHours, STATUS } from '../lib/model.js';
 import { todayISO, isoAddDays, fmtHM, fmtTime, fmtDate, fmtHours } from '../lib/util.js';
 import { addFromSearch } from '../lib/actions.js';
-import { coverUrl } from '../lib/igdb.js';
+import { coverUrl } from '../lib/catalog.js';
 import { placeholderGradient } from '../lib/util.js';
 
 function DatePick({ label, value, onChange, max = todayISO() }) {
@@ -29,7 +29,7 @@ function AddSheet({ res }) {
   const [status, setSt] = useState(res.online ? 'rotation' : 'wish');
   const [top, setTop] = useState(false);
   const [platform, setPlatform] = useState('');
-  const src = coverUrl(res.coverId, 't_cover_small');
+  const src = coverUrl(res.cover, 'small');
   const add = () => {
     if (status === 'done') return go('addDone', { res, platform });
     const g = addFromSearch(res, { status, top, platform });
@@ -229,7 +229,7 @@ function FinishSheet({ id }) {
   const [fav, setFav] = useState(g ? g.fav : false);
   const [rp, setRp] = useState(g ? g.replay : false);
   if (!g) return null;
-  const hint = [ses > 0 ? `по таймеру ${fmtHM(ses * 3600000)}` : '', hltbHours(g) ? `HLTB ~${fmtHours(hltbHours(g))}` : '', previousHours(g) ? `прошлый раз ${fmtHours(previousHours(g))}` : ''].filter(Boolean).join(' · ');
+  const hint = [ses > 0 ? `по таймеру ${fmtHM(ses * 3600000)}` : '', hltbHours(g) ? `${hltbSrc(g)} ~${fmtHours(hltbHours(g))}` : '', previousHours(g) ? `прошлый раз ${fmtHours(previousHours(g))}` : ''].filter(Boolean).join(' · ');
   const steps = <div class="steps"><i class="on" /><i class={step === 2 ? 'on' : ''} /></div>;
   if (step === 1) {
     return (

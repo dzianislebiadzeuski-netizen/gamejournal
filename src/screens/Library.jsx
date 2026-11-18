@@ -1,6 +1,6 @@
 import { useStore, go, setLibTab } from '../lib/store.js';
 import { Cover, Icon, Nav, Info } from '../ui/kit.jsx';
-import { timesCompleted, lastCompleted, totalHours, hltbHours, completed } from '../lib/model.js';
+import { timesCompleted, lastCompleted, totalHours, hltbHours, hltbSrc, completed } from '../lib/model.js';
 import { fmtHours, fmtMonthYear, fmtShort, gamesWord, todayISO } from '../lib/util.js';
 import { removeFromWish } from '../lib/actions.js';
 
@@ -82,7 +82,7 @@ function TopCard({ g }) {
       <div class="col" style={{ flex: 1, minWidth: 0, justifyContent: 'center', gap: 8 }}>
         <span class="flame"><Icon n="flame" size={12} sw={2} />Топ приоритет</span>
         <span style={{ fontFamily: 'var(--unb)', fontSize: 15, fontWeight: 600, lineHeight: 1.25 }}>{g.name}</span>
-        <span class="mono xs muted">{h ? `~${fmtHours(h)} по HLTB` : 'HLTB: данных пока нет'}</span>
+        <span class="mono xs muted">{h ? `~${fmtHours(h)} по ${hltbSrc(g)}` : 'время прохождения: нет данных'}</span>
         <span class="small text2">{(g.genres || []).slice(0, 2).join(' · ')}</span>
       </div>
     </button>

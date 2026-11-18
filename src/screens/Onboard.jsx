@@ -1,7 +1,7 @@
 import { useState } from 'preact/hooks';
 import { getDb, setSettings, tab, back, toast, replace } from '../lib/store.js';
 import { Icon, Field, Back } from '../ui/kit.jsx';
-import { fetchToken } from '../lib/igdb.js';
+import { checkKey } from '../lib/catalog.js';
 
 function Feature({ icon, color, title, sub }) {
   return (
@@ -33,8 +33,7 @@ export function Onboard() {
 
 export function OnboardKey({ first }) {
   const s = getDb().settings;
-  const [id, setId] = useState(s.igdbId || '');
-  const [secret, setSecret] = useState(s.igdbSecret || '');
+  const [key, setKey] = useState(s.rawgKey || '');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState('');
 
@@ -48,9 +47,10 @@ export function OnboardKey({ first }) {
     setErr('');
     setBusy(true);
     try {
-      const t = await fetchToken(id.trim(), secret.trim());
-      setSettings({ igdbId: id.trim(), igdbSecret: secret.trim(), ...t });
-      toast('База игр подключена');
+      const k = key.trim().replace(/\s+/g, '');
+      await checkKey(k);
+      setSettings({ rawgKey: k });
+      toast('Каталог игр подключён');
       finish();
     } catch (e) {
       setErr(e.message || 'Не получилось проверить ключ');
@@ -69,17 +69,16 @@ export function OnboardKey({ first }) {
   return (
     <div class="screen no-nav">
       <Back onClick={() => (first ? replace('onboard') : back())} />
-      <h1 style={{ fontFamily: 'var(--unb)', fontSize: 24, fontWeight: 600, lineHeight: 1.2 }}>Подключим базу игр</h1>
-      <p class="text2" style={{ fontSize: 14, lineHeight: 1.5 }}>Обложки, описания, жанры и похожие игры берутся из IGDB. Нужен бесплатный ключ — один раз, минут пять.</p>
+      <h1 style={{ fontFamily: 'var(--unb)', fontSize: 24, fontWeight: 600, lineHeight: 1.2 }}>Подключим каталог игр</h1>
+      <p class="text2" style={{ fontSize: 14, lineHeight: 1.5 }}>Обложки, описания, жанры и похожие игры берутся из каталога RAWG. Нужен бесплатный ключ — регистрация по почте, без телефона.</p>
       <div class="card glass" style={{ gap: 14 }}>
-        <Step n="1">Зайди на <b>dev.twitch.tv/console</b> и войди через Twitch (нужна двухфакторка)</Step>
-        <Step n="2"><b>Register Your Application</b>: любое имя, OAuth Redirect URL — <span class="mono">http://localhost</span>, категория — Application Integration, тип клиента — Confidential</Step>
-        <Step n="3">Скопируй <b>Client ID</b>, нажми <b>New Secret</b> и скопируй его</Step>
+        <Step n="1">Открой <a href="https://rawg.io/apidocs"><b>rawg.io/apidocs</b></a> и нажми <b>Get API Key</b>. Зарегистрируйся по почте и подтверди её</Step>
+        <Step n="2">Заполни короткую форму: название — <b>GameJournal</b>, сайт — любая ссылка (например, на свой GitHub), цель — личное некоммерческое использование</Step>
+        <Step n="3">Скопируй выданный <b>API key</b> — строку из 32 букв и цифр — и вставь ниже</Step>
       </div>
-      <Field label="Client ID" id="cid" icon="key" mono value={id} onInput={setId} placeholder="abcd1234…" />
-      <Field label="Client Secret" id="cs" icon="key" mono type="password" value={secret} onInput={setSecret} placeholder="••••••••" />
+      <Field label="RAWG API key" id="rk" icon="key" mono value={key} onInput={setKey} placeholder="32 символа" />
       {err && <div class="info red"><Icon n="info" size={16} sw={2} /><span>{err}</span></div>}
-      <button class="btn btn-primary" style={{ flex: 'none' }} disabled={busy || !id.trim() || !secret.trim()} onClick={save}>
+      <button class="btn btn-primary" style={{ flex: 'none' }} disabled={busy || key.trim().length < 10} onClick={save}>
         {busy ? <span class="spinner" /> : <Icon n="check" size={18} sw={2.2} />}Проверить и сохранить
       </button>
       <button class="link center" style={{ fontSize: 13, minHeight: 44 }} onClick={finish}>{first ? 'Пропустить — добавлю ключ позже' : 'Отмена'}</button>

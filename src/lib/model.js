@@ -67,6 +67,8 @@ export function lastActivity(g) {
   return Math.max(lastS, g.active ? g.active.t0 : 0, g.statusAt || 0, g.addedAt || 0);
 }
 
+export const hltbSrc = (g) => (g && g.hltb && g.hltb.src === 'rawg' ? 'RAWG' : 'HLTB');
+
 export function hltbHours(g) {
   return g.hltb && g.hltb.main ? g.hltb.main : null;
 }

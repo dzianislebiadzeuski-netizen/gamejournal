@@ -1,8 +1,8 @@
-// Fills a game with data from IGDB/HLTB, translates the description and caches the cover on device.
+// Fills a game with data from RAWG/HLTB, translates the description and caches the cover on device.
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { request } from './http.js';
-import * as igdb from './igdb.js';
+import * as catalog from './catalog.js';
 import { hltbMain } from './hltb.js';
 import { getGame, updateGame } from './store.js';
 
@@ -21,11 +21,11 @@ export async function translateToRu(text) {
   }
 }
 
-export function coverSrc(g, size = 't_cover_big') {
+export function coverSrc(g, size = 'big') {
   if (!g) return null;
   if (g.coverFile && native) return Capacitor.convertFileSrc(g.coverFile);
   if (g.coverData) return g.coverData;
-  return igdb.coverUrl(g.coverId, size);
+  return catalog.coverUrl(g.cover, size);
 }
 
 export async function saveCoverBase64(id, base64) {
@@ -38,9 +38,9 @@ export async function saveCoverBase64(id, base64) {
 
 export async function cacheCover(id) {
   const g = getGame(id);
-  if (!g || !g.coverId || g.coverFile || !native) return;
+  if (!g || !g.cover || g.coverFile || !native) return;
   try {
-    const r = await request({ url: igdb.coverUrl(g.coverId), responseType: 'blob', timeout: 20000 });
+    const r = await request({ url: catalog.coverUrl(g.cover), responseType: 'blob', timeout: 20000 });
     if (r.status !== 200 || !r.data) return;
     const patch = await saveCoverBase64(id, r.data);
     updateGame(id, patch);
@@ -54,7 +54,7 @@ const running = new Set();
 // Pulls everything we can about the game. Safe to call repeatedly.
 export async function enrich(id, { force = false } = {}) {
   const g = getGame(id);
-  if (!g || !g.igdbId || running.has(id)) return;
+  if (!g || !g.extId || running.has(id)) return;
   if (g.enrichedAt && !force) {
     cacheCover(id);
     if (g.summary && g.summary.en && !g.summary.ru) {
@@ -65,24 +65,25 @@ export async function enrich(id, { force = false } = {}) {
   }
   running.add(id);
   try {
-    const d = await igdb.details(g.igdbId).catch(() => null);
+    const d = await catalog.details(g.extId).catch(() => null);
     if (d) {
       updateGame(id, (x) => ({
         ...x,
         name: x.name || d.name,
         year: x.year || d.year,
-        coverId: x.coverId || d.coverId,
+        cover: x.cover || d.cover,
+        slug: x.slug || d.slug,
         genres: x.genres && x.genres.length ? x.genres : d.genres,
         summary: { ...(x.summary || {}), en: d.summaryEn },
-        similar: d.similar,
         enrichedAt: Date.now(),
       }));
+      cacheCover(id);
+      catalog.similar(g.extId, d.raw).then((sim) => { if (sim.length) updateGame(id, { similar: sim }); }).catch(() => {});
     }
-    cacheCover(id);
     const name = (getGame(id) || g).name;
-    const [h, t] = await Promise.all([hltbMain(name), igdb.timeToBeat(g.igdbId)]);
-    const main = h || t;
-    if (main) updateGame(id, { hltb: { main, src: h ? 'hltb' : 'igdb' } });
+    const h = await hltbMain(name);
+    const main = h || (d && d.playtime) || null;
+    if (main) updateGame(id, { hltb: { main, src: h ? 'hltb' : 'rawg' } });
     const cur = getGame(id);
     if (cur && cur.summary && cur.summary.en && !cur.summary.ru) {
       const ru = await translateToRu(cur.summary.en);

@@ -3,11 +3,11 @@ import { back, replace, addGame, toast, updateGame } from '../lib/store.js';
 import { Icon, Back, Field, Stepper, Rating, ToggleRow, ChipGroup, Info } from '../ui/kit.jsx';
 import { PLATFORMS } from '../lib/model.js';
 import { todayISO, placeholderGradient } from '../lib/util.js';
-import { coverUrl } from '../lib/igdb.js';
+import { coverUrl } from '../lib/catalog.js';
 import { enrich, saveCoverBase64 } from '../lib/enrich.js';
 
 function Header({ res }) {
-  const src = res.coverData || coverUrl(res.coverId, 't_cover_small');
+  const src = res.coverData || coverUrl(res.cover, 'small');
   return (
     <div class="row" style={{ gap: 14 }}>
       <div class="cover" style={{ width: 72, height: 96, borderRadius: 12, background: src ? '#1a1d25' : placeholderGradient(res.name) }}>
@@ -43,7 +43,7 @@ export function AddDone({ res, platform }) {
     const { coverData, ...rest } = res;
     const g = addGame({
       ...rest,
-      igdbId: res.igdbId || undefined,
+      extId: res.extId || undefined,
       type: 'game',
       status: 'done',
       platform: platform || '',
@@ -57,7 +57,7 @@ export function AddDone({ res, platform }) {
       const patch = await saveCoverBase64(g.id, coverData.split(',')[1]).catch(() => null);
       if (patch) updateGame(g.id, patch);
     }
-    if (g.igdbId) enrich(g.id);
+    if (g.extId) enrich(g.id);
     toast(`${g.name} — в «Пройдено»`);
     replace('game', { id: g.id });
   };
@@ -160,7 +160,7 @@ export function AddManual({ name = '' }) {
         <span style={{ fontFamily: 'var(--unb)', fontSize: 15, fontWeight: 600 }}>Добавить вручную</span>
         <span style={{ width: 44 }} />
       </div>
-      <Info>Для игр, которых нет в IGDB. Описание и похожие игры для неё не подтянутся.</Info>
+      <Info>Для игр, которых нет в каталоге. Описание и похожие игры для неё не подтянутся.</Info>
       <button class="row glass" style={{ gap: 14, padding: 12, borderRadius: 18, border: '1px dashed rgba(255,255,255,0.22)', textAlign: 'left', color: 'inherit' }} onClick={() => fileRef.current.click()}>
         <span class="cover" style={{ width: 64, height: 86, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#8C93A1' }}>
           {cover ? <img src={cover} alt="" /> : <Icon n="image" size={24} />}

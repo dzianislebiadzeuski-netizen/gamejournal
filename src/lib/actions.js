@@ -1,15 +1,15 @@
 // Multi-step user actions shared by several screens.
-import { addGame, deleteGame, findByIgdb, getGame, openSheet, stopSession, toast, startSession, updateGame } from './store.js';
+import { addGame, deleteGame, findByExt, getGame, openSheet, stopSession, toast, startSession, updateGame } from './store.js';
 import { enrich } from './enrich.js';
 import { todayISO } from './util.js';
 
 export function addFromSearch(res, { status, top = false, platform = '' }) {
   const online = status === 'rotation';
   const g = addGame({
-    igdbId: res.igdbId,
+    extId: res.extId,
     name: res.name,
     year: res.year,
-    coverId: res.coverId,
+    cover: res.cover,
     genres: res.genres || [],
     type: online ? 'online' : 'game',
     status,
@@ -22,9 +22,9 @@ export function addFromSearch(res, { status, top = false, platform = '' }) {
 }
 
 export function addSimilarToWish(s) {
-  const existing = findByIgdb(s.igdbId);
+  const existing = findByExt(s.extId);
   if (existing) return existing;
-  const g = addGame({ igdbId: s.igdbId, name: s.name, year: s.year, coverId: s.coverId, genres: s.genres || [], status: 'wish' });
+  const g = addGame({ extId: s.extId, name: s.name, year: s.year, cover: s.cover, genres: s.genres || [], status: 'wish' });
   toast(`${s.name} — в «Хочу пройти»`, { label: 'Отменить', fn: () => deleteGame(g.id) });
   enrich(g.id);
   return g;

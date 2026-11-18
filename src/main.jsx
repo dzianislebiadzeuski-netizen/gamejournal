@@ -17,8 +17,8 @@ import { enrich } from './lib/enrich.js';
 load().then(() => {
   render(<App />, document.getElementById('app'));
   // Background top-up of data for games added offline or before keys were set.
-  if (getDb().settings.igdbId) {
-    const todo = allGames().filter((g) => g.igdbId && (!g.enrichedAt || !g.coverFile));
+  if (getDb().settings.rawgKey) {
+    const todo = allGames().filter((g) => g.extId && (!g.enrichedAt || !g.coverFile));
     (async () => {
       for (const g of todo) {
         await enrich(g.id).catch(() => {});

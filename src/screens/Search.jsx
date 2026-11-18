@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { back, go, openSheet, findByIgdb, useStore } from '../lib/store.js';
+import { back, go, openSheet, findByExt, useStore } from '../lib/store.js';
 import { Icon, Back, Info } from '../ui/kit.jsx';
-import { search, hasKeys, coverUrl } from '../lib/igdb.js';
+import { search, hasKeys, coverUrl } from '../lib/catalog.js';
 import { STATUS } from '../lib/model.js';
 import { placeholderGradient } from '../lib/util.js';
 
@@ -56,20 +56,20 @@ export function Search() {
 
       {!keys && (
         <div class="col">
-          <Info>Чтобы искать игры, обложки и описания, подключи бесплатный ключ IGDB.</Info>
-          <button class="btn btn-primary" style={{ flex: 'none' }} onClick={() => go('onboardKey')}><Icon n="key" size={18} />Подключить IGDB</button>
+          <Info>Чтобы искать игры, обложки и описания, подключи бесплатный ключ каталога RAWG.</Info>
+          <button class="btn btn-primary" style={{ flex: 'none' }} onClick={() => go('onboardKey')}><Icon n="key" size={18} />Подключить каталог</button>
         </div>
       )}
       {err && <div class="info red"><Icon n="info" size={16} sw={2} /><span>{err}</span></div>}
-      {res.length > 0 && <div class="kicker">Найдено в IGDB · {res.length}</div>}
+      {res.length > 0 && <div class="kicker">Найдено в RAWG · {res.length}</div>}
 
       <div class="col">
         {res.map((r) => {
-          const ex = findByIgdb(r.igdbId);
+          const ex = findByExt(r.extId);
           return (
             <button class={`res ${ex ? 'in' : 'glass'}`} onClick={() => (ex ? go('game', { id: ex.id }) : openSheet('add', { res: r }))}>
-              <div class="cover" style={{ background: r.coverId ? '#1a1d25' : placeholderGradient(r.name) }}>
-                {r.coverId && <img src={coverUrl(r.coverId, 't_cover_small')} alt="" loading="lazy" />}
+              <div class="cover" style={{ background: r.cover ? '#1a1d25' : placeholderGradient(r.name) }}>
+                {r.cover && <img src={coverUrl(r.cover, 'small')} alt="" loading="lazy" />}
               </div>
               <span class="t">
                 <b>{r.name}</b>
@@ -83,6 +83,7 @@ export function Search() {
       </div>
 
       {keys && q.trim().length >= 2 && !busy && !res.length && !err && <div class="center small muted">Ничего не нашлось.</div>}
+      {res.length > 0 && <div class="center xs muted">Данные и изображения: <a href="https://rawg.io">RAWG</a></div>}
       <div class="center small muted" style={{ fontSize: 13 }}>
         Нет нужной игры? <button class="link" style={{ fontSize: 13 }} onClick={() => go('addManual', { name: q.trim() })}>Добавить вручную</button>
       </div>
