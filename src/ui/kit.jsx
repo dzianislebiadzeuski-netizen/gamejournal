@@ -141,7 +141,7 @@ export function Info({ children, icon = 'info', red }) {
 export function Section({ title, right, children }) {
   return (
     <div class="col">
-      <div class="between"><h2 class="sec">{title}</h2>{right}</div>
+      <div class="between sec-head"><h2 class="sec">{title}</h2>{right}</div>
       {children}
     </div>
   );
