@@ -63,6 +63,8 @@ export async function load() {
       const parsed = JSON.parse(text);
       db = { ...defaultDb(), ...parsed, settings: { ...defaultDb().settings, ...(parsed.settings || {}) } };
       lastSavedText = text;
+      // v1.3: HLTB time is entered by hand only — drop old automatic values (RAWG averages etc.).
+      for (const g of Object.values(db.games)) if (g.hltb && g.hltb.src !== 'manual') delete g.hltb;
     }
   } catch (e) {
     console.error('load failed', e);

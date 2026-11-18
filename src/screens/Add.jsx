@@ -34,9 +34,11 @@ export function AddDone({ res, platform, mode = 'done' }) {
   const [imp, setImp] = useState('');
   const [fav, setFav] = useState(false);
   const [rp, setRp] = useState(false);
+  const [hl, setHl] = useState('');
 
   const save = async () => {
     const h = Number(hours) || 0;
+    const hlv = Number(String(hl).replace(',', '.')) || 0;
     const { coverData, online, ...rest } = res;
     let data;
     if (dropped) {
@@ -56,7 +58,7 @@ export function AddDone({ res, platform, mode = 'done' }) {
       pts.push(old ? { start: null, end: null, hours: h, old: true } : { start, end, hours: h, old: false });
       data = { status: 'done', playthroughs: pts, replay: rp };
     }
-    const g = addGame({ ...rest, extId: res.extId || undefined, type: 'game', platform: platform || '', rating, impressions: imp.trim(), fav, ...data });
+    const g = addGame({ ...rest, extId: res.extId || undefined, type: 'game', platform: platform || '', rating, impressions: imp.trim(), fav, ...data, ...(hlv > 0 ? { hltb: { main: Math.round(hlv * 10) / 10, src: 'manual' } } : {}) });
     if (coverData) {
       const patch = await saveCoverBase64(g.id, coverData.split(',')[1]).catch(() => null);
       if (patch) updateGame(g.id, patch);
@@ -92,6 +94,7 @@ export function AddDone({ res, platform, mode = 'done' }) {
           <Stepper id="h" label={dropped ? 'Успел наиграть' : 'Часов'} value={hours} onChange={setHours} unit="ч" max={2000} />
           {!dropped && <Stepper id="n" label="Раз пройдено" value={times} onChange={setTimes} min={1} max={50} unit="×" />}
         </div>
+        <Field label="HLTB · основной сюжет, часов (можно потом)" id="hlt" mono value={hl} onInput={setHl} placeholder="например, 28" suffix="ч" inputMode="decimal" />
       </div>
       <div class="card glass">
         <div class="between"><span class="lbl">Оценка</span><span class="mono xs muted">1–10, можно не ставить</span></div>

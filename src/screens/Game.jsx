@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useStore, back, openSheet, updateGame, setStatus, startSession, findByExt, go } from '../lib/store.js';
 import { Cover, Icon, Status, Section, Cell, Info, ToggleRow, useTick, Back } from '../ui/kit.jsx';
 import {
-  timesCompleted, totalHours, currentHours, hltbHours, hltbSrc, openPt, completed, activeMs, daysSince, isOnline,
+  timesCompleted, totalHours, currentHours, hltbHours, remainingText, diffText, openPt, completed, activeMs, daysSince, isOnline, lastCompleted,
 } from '../lib/model.js';
 import { fmtHours, fmtDate, fmtClock, fmtTime, relDay, todayISO, fmtHM, placeholderGradient, monthName } from '../lib/util.js';
 import { toggleSession, toggleFav, addSimilarToWish, removeFromWish } from '../lib/actions.js';
@@ -111,6 +111,29 @@ function History({ g }) {
   );
 }
 
+function HltbCell({ g, hl }) {
+  return <Cell l="HLTB · сюжет" v={hl ? fmtHours(hl) : '+'} s={hl ? 'нажми, чтобы изменить' : 'вписать вручную'} onClick={() => openSheet('hltb', { id: g.id })} />;
+}
+
+function Compare({ g, mine, hl, label }) {
+  if (!hl) {
+    return (
+      <button class="dashed" style={{ textAlign: 'left', background: 'none', color: 'var(--muted)', width: '100%' }} onClick={() => openSheet('hltb', { id: g.id })}>
+        Впиши время основного сюжета с HowLongToBeat — покажу, насколько ты быстрее или дольше.
+      </button>
+    );
+  }
+  const max = Math.max(mine, hl) || 1;
+  return (
+    <div class="card glass" style={{ gap: 10 }}>
+      <div class="between"><span class="lbl">Сравнение с HLTB</span><button class="link" onClick={() => openSheet('hltb', { id: g.id })}>Изменить</button></div>
+      <div class="cmp"><span>{label}</span><div class="tr"><i style={{ width: `${(mine / max) * 100}%` }} /></div><b class="mono">{fmtHours(mine)}</b></div>
+      <div class="cmp"><span>HLTB, сюжет</span><div class="tr"><i class="h" style={{ width: `${(hl / max) * 100}%` }} /></div><b class="mono">{fmtHours(hl)}</b></div>
+      <span class="small text2">{diffText(mine, hl)}</span>
+    </div>
+  );
+}
+
 export function Game({ id }) {
   const { db } = useStore();
   const g = db.games[id];
@@ -139,7 +162,7 @@ export function Game({ id }) {
   if (s === 'wish') {
     stats = (
       <div class="card glass"><div class="stats2">
-        <Cell l={hl ? `По ${hltbSrc(g)}` : 'Длительность'} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (g.hltb.src === 'hltb' ? 'основной сюжет' : 'в среднем у игроков') : 'данных нет'} />
+        <HltbCell g={g} hl={hl} />
         <Cell l="В списке" v={`${daysSince(todayISO(new Date(g.addedAt)))} дн`} s={`с ${fmtDate(todayISO(new Date(g.addedAt)))}`} />
       </div></div>
     );
@@ -156,9 +179,9 @@ export function Game({ id }) {
     stats = (
       <div class="card glass">
         <div class="stats3">
-          <Cell l="Наиграно" v={fmtHours(cur)} s={n ? `прохождение №${n + 1}` : 'по таймеру'} />
-          <Cell l={hl ? `По ${hltbSrc(g)}` : 'Длительность'} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl ? (cur < hl ? `осталось ~${fmtHours(hl - cur)}` : 'уже больше') : 'данных нет'} />
-          <Cell l="Начато" v={`${p ? daysSince(p.start) : 0} дн`} s={p ? `с ${fmtDate(p.start)}` : ''} />
+          <Cell l="Наиграно" v={fmtHours(cur)} s={`${n ? `№${n + 1} · ` : ''}с ${p ? fmtDate(p.start) : '—'}`} />
+          <HltbCell g={g} hl={hl} />
+          <Cell l="Осталось" v={hl ? remainingText(cur, hl).v : '—'} s={hl ? remainingText(cur, hl).s : 'нужно время HLTB'} />
         </div>
         {hl && <div class="prog"><i style={{ width: `${Math.min(100, (cur / hl) * 100)}%` }} /></div>}
       </div>
@@ -173,9 +196,9 @@ export function Game({ id }) {
     stats = (
       <div class="card glass">
         <div class="stats3">
-          <Cell l="Наиграно" v={fmtHours(cur)} />
-          <Cell l={hl ? `По ${hltbSrc(g)}` : 'Длительность'} v={hl ? `~${fmtHours(hl)}` : '—'} s={hl && cur < hl ? `осталось ~${fmtHours(hl - cur)}` : ''} />
-          <Cell l="На паузе" v={`${daysSince(todayISO(new Date(g.statusAt)))} дн`} s={`с ${fmtDate(todayISO(new Date(g.statusAt)))}`} />
+          <Cell l="Наиграно" v={fmtHours(cur)} s={`на паузе ${daysSince(todayISO(new Date(g.statusAt)))} дн`} />
+          <HltbCell g={g} hl={hl} />
+          <Cell l="Осталось" v={hl ? remainingText(cur, hl).v : '—'} s={hl ? remainingText(cur, hl).s : 'нужно время HLTB'} />
         </div>
         {hl && <div class="prog"><i style={{ width: `${Math.min(100, (cur / hl) * 100)}%` }} /></div>}
       </div>
@@ -268,6 +291,7 @@ export function Game({ id }) {
         </div>
         {stats}
         {actions}
+        {s === 'done' && <Compare g={g} mine={(lastCompleted(g) || {}).hours || 0} hl={hl} label={n > 1 ? 'Последнее прохождение' : 'Твоё прохождение'} />}
         {(s === 'playing' || online || s === 'paused' || s === 'dropped') && <Sessions g={g} />}
         {online && <Info>У сетевых игр нет «пройдено». Только «в ротации» или «забросил», а часы считаются по сессиям.</Info>}
         {(g.impressions || s === 'done') && (

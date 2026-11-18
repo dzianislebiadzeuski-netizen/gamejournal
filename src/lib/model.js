@@ -67,10 +67,33 @@ export function lastActivity(g) {
   return Math.max(lastS, g.active ? g.active.t0 : 0, g.statusAt || 0, g.addedAt || 0);
 }
 
-export const hltbSrc = (g) => (g && g.hltb && g.hltb.src === 'rawg' ? 'RAWG' : 'HLTB');
-
+// HLTB "Main Story" hours, entered by hand in the game card.
 export function hltbHours(g) {
-  return g.hltb && g.hltb.main ? g.hltb.main : null;
+  return g && g.hltb && g.hltb.main ? g.hltb.main : null;
+}
+
+export const hltbSearchUrl = (g) => `https://howlongtobeat.com/?q=${encodeURIComponent((g && g.name) || '')}`;
+
+const r1 = (h) => Math.round(h * 10) / 10;
+const fh = (h) => {
+  const v = r1(Math.abs(h));
+  if (v > 0 && v < 1) return `${Math.max(1, Math.round(v * 60))} м`;
+  return `${v >= 10 ? Math.round(v) : String(v).replace('.', ',')} ч`;
+};
+
+// Neutral wording, no "good/bad" — just facts.
+export function remainingText(cur, hl) {
+  if (!hl) return null;
+  const rest = hl - cur;
+  if (Math.abs(rest) < 0.25) return { v: '0 ч', s: 'ровно по HLTB' };
+  return rest > 0 ? { v: `~${fh(rest)}`, s: 'до конца сюжета' } : { v: '—', s: `на ${fh(rest)} больше HLTB` };
+}
+
+export function diffText(mine, hl) {
+  if (!hl || mine == null) return null;
+  const d = mine - hl;
+  if (Math.abs(d) < 0.5) return 'ровно как по HLTB';
+  return d > 0 ? `на ${fh(d)} дольше HLTB` : `на ${fh(d)} быстрее HLTB`;
 }
 
 export function daysSince(iso) {

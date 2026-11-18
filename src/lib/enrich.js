@@ -3,7 +3,6 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { request } from './http.js';
 import * as catalog from './catalog.js';
-import { hltbMain } from './hltb.js';
 import { getGame, updateGame } from './store.js';
 
 const native = Capacitor.isNativePlatform();
@@ -80,10 +79,6 @@ export async function enrich(id, { force = false } = {}) {
       cacheCover(id);
       catalog.similar(g.extId, d.raw).then((sim) => { if (sim.length) updateGame(id, { similar: sim }); }).catch(() => {});
     }
-    const name = (getGame(id) || g).name;
-    const h = await hltbMain(name);
-    const main = h || (d && d.playtime) || null;
-    if (main) updateGame(id, { hltb: { main, src: h ? 'hltb' : 'rawg' } });
     const cur = getGame(id);
     if (cur && cur.summary && cur.summary.en && !cur.summary.ru) {
       const ru = await translateToRu(cur.summary.en);

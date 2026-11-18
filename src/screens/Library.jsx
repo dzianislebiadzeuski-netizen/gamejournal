@@ -1,6 +1,6 @@
 import { useStore, go, setLibTab, updateGame } from '../lib/store.js';
 import { Cover, Icon, Nav, Info } from '../ui/kit.jsx';
-import { timesCompleted, lastCompleted, totalHours, hltbHours, hltbSrc, completed } from '../lib/model.js';
+import { timesCompleted, lastCompleted, totalHours, hltbHours, completed } from '../lib/model.js';
 import { fmtHours, fmtMonthYear, fmtShort, gamesWord, todayISO } from '../lib/util.js';
 import { removeFromWish } from '../lib/actions.js';
 
@@ -46,7 +46,7 @@ function Tile({ g, mode }) {
     sub = mode === 'fav' && !n ? (g.status === 'wish' ? 'хочу пройти' : g.status === 'dropped' ? 'брошено' : g.status === 'playing' ? 'прохожу' : '') : e ? fmtMonthYear(e) : n ? 'давно' : '';
   } else if (mode === 'wish') {
     const h = hltbHours(g);
-    bottom = h ? `~${fmtHours(h)}` : null;
+    bottom = h ? fmtHours(h) : null;
   } else if (mode === 'paused') {
     bottom = fmtHours(totalHours(g));
     sub = `с ${fmtShort(todayISO(new Date(g.statusAt)))}`;
@@ -92,7 +92,7 @@ function TopCard({ g }) {
       <div class="col" style={{ flex: 1, minWidth: 0, justifyContent: 'center', gap: 8 }}>
         <span class="flame"><Icon n="flame" size={12} sw={2} />Топ приоритет</span>
         <span style={{ fontFamily: 'var(--unb)', fontSize: 15, fontWeight: 600, lineHeight: 1.25 }}>{g.name}</span>
-        <span class="mono xs muted">{h ? `~${fmtHours(h)} по ${hltbSrc(g)}` : 'время прохождения: нет данных'}</span>
+        <span class="mono xs muted">{h ? `HLTB · сюжет ${fmtHours(h)}` : 'HLTB: не вписано'}</span>
         <span class="small text2">{(g.genres || []).slice(0, 2).join(' · ')}</span>
       </div>
       <button class="fl on" style={{ position: 'relative', alignSelf: 'flex-start', zIndex: 2 }} aria-label="Убрать из топ-приоритета" onClick={() => updateGame(g.id, { top: false })}>

@@ -121,13 +121,13 @@ export function ChipGroup({ options, value, onChange, pill }) {
   );
 }
 
-export function Field({ label, id, icon, value, onInput, type = 'text', placeholder, suffix, mono, max }) {
+export function Field({ label, id, icon, value, onInput, type = 'text', placeholder, suffix, mono, max, inputMode }) {
   return (
     <div class="field">
       <label class="lbl" for={id}>{label}</label>
       <div class="inp">
         {icon && <Icon n={icon} size={18} />}
-        <input id={id} type={type} value={value} max={max} placeholder={placeholder} class={mono ? 'mono' : ''} onInput={(e) => onInput(e.currentTarget.value)} />
+        <input id={id} type={type} value={value} max={max} placeholder={placeholder} inputMode={inputMode} class={mono ? 'mono' : ''} onInput={(e) => onInput(e.currentTarget.value)} />
         {suffix && <span class="mono muted small">{suffix}</span>}
       </div>
     </div>

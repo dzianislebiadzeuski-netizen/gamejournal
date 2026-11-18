@@ -4,7 +4,7 @@ import {
   addManualTime, setOpenStart, finishPlaythrough, startReplay, previousHours, back, getUi, openSheet,
 } from '../lib/store.js';
 import { Sheet, Icon, ChipGroup, Field, Stepper, Rating, ToggleRow, Info, Cell } from '../ui/kit.jsx';
-import { PLATFORMS, openPt, currentSessionsMs, hltbHours, hltbSrc, timesCompleted, totalHours, STATUS, completed } from '../lib/model.js';
+import { PLATFORMS, openPt, currentSessionsMs, hltbHours, hltbSearchUrl, timesCompleted, totalHours, STATUS, completed, currentHours, remainingText, diffText } from '../lib/model.js';
 import { todayISO, isoAddDays, fmtHM, fmtTime, fmtDate, fmtHours } from '../lib/util.js';
 import { addFromSearch } from '../lib/actions.js';
 import { coverUrl } from '../lib/catalog.js';
@@ -29,10 +29,13 @@ function AddSheet({ res }) {
   const [status, setSt] = useState(res.online ? 'rotation' : 'wish');
   const [top, setTop] = useState(false);
   const [platform, setPlatform] = useState('');
+  const [hl, setHl] = useState('');
   const src = coverUrl(res.cover, 'small');
   const add = () => {
     if (status === 'done' || status === 'dropped') return go('addDone', { res, platform, mode: status });
     const g = addFromSearch(res, { status, top, platform });
+    const hlv = Number(String(hl).replace(',', '.')) || 0;
+    if (hlv > 0 && status !== 'rotation') updateGame(g.id, { hltb: { main: Math.round(hlv * 10) / 10, src: 'manual' } });
     const where = { wish: '«Хочу пройти»', playing: '«Играю сейчас»', rotation: '«В ротации»' }[status];
     toast(`${g.name} — в ${where}`);
     const ui = getUi();
@@ -74,6 +77,9 @@ function AddSheet({ res }) {
         <span class="lbl">Платформа</span>
         <ChipGroup value={platform} onChange={(v) => setPlatform(v === platform ? '' : v)} options={PLATFORMS} />
       </div>
+      {(status === 'wish' || status === 'playing') && (
+        <Field label="HLTB · основной сюжет, часов (можно потом)" id="ahl" mono value={hl} onInput={setHl} placeholder="например, 28" suffix="ч" inputMode="decimal" />
+      )}
       <button class="btn btn-primary" style={{ flex: 'none' }} onClick={add}>{label}</button>
     </Sheet>
   );
@@ -233,7 +239,7 @@ function FinishSheet({ id }) {
   const [fav, setFav] = useState(g ? g.fav : false);
   const [rp, setRp] = useState(g ? g.replay : false);
   if (!g) return null;
-  const hint = [ses > 0 ? `по таймеру ${fmtHM(ses * 3600000)}` : '', hltbHours(g) ? `${hltbSrc(g)} ~${fmtHours(hltbHours(g))}` : '', previousHours(g) ? `прошлый раз ${fmtHours(previousHours(g))}` : ''].filter(Boolean).join(' · ');
+  const hint = [ses > 0 ? `по таймеру ${fmtHM(ses * 3600000)}` : '', hltbHours(g) ? `HLTB ${fmtHours(hltbHours(g))}` : '', previousHours(g) ? `прошлый раз ${fmtHours(previousHours(g))}` : ''].filter(Boolean).join(' · ');
   const steps = <div class="steps"><i class="on" /><i class={step === 2 ? 'on' : ''} /></div>;
   if (step === 1) {
     return (
@@ -354,6 +360,30 @@ function PlaythroughsSheet({ id }) {
   );
 }
 
+// ---------- HLTB main story hours (manual) ----------
+function HltbSheet({ id }) {
+  const g = getGame(id);
+  const [h, setH] = useState(g && g.hltb ? g.hltb.main : '');
+  if (!g) return null;
+  const v = Number(String(h).replace(',', '.')) || 0;
+  const cur = currentHours(g);
+  const rem = g.status === 'playing' || g.status === 'paused' ? remainingText(cur, v) : null;
+  return (
+    <Sheet title="HLTB · основной сюжет" sub={g.name}>
+      <Info>Найди игру на HowLongToBeat и возьми время <b>Main Story</b>. Побочки и 100% не нужны.</Info>
+      <a class="btn btn-glass" style={{ flex: 'none', textDecoration: 'none' }} href={hltbSearchUrl(g)}><Icon n="search" size={16} sw={2} />Открыть HowLongToBeat</a>
+      <Stepper id="hl" label="Часов на сюжет" value={h} onChange={setH} step={0.5} max={500} unit="ч" />
+      {v > 0 && rem && <span class="small text2">Сейчас наиграно {fmtHours(cur)} · осталось {rem.v === '—' ? '0 ч' : rem.v}{rem.v === '—' ? ` (${rem.s})` : ''}</span>}
+      <div class="row">
+        {g.hltb && <button class="btn btn-glass" style={{ flex: '0 0 120px' }} onClick={() => { updateGame(id, { hltb: null }); closeSheet(); }}>Убрать</button>}
+        <button class="btn btn-primary" disabled={v <= 0} onClick={() => { updateGame(id, { hltb: { main: Math.round(v * 10) / 10, src: 'manual' } }); toast('Время HLTB сохранено'); closeSheet(); }}>
+          <Icon n="check" size={18} sw={2.2} />Сохранить
+        </button>
+      </div>
+    </Sheet>
+  );
+}
+
 // ---------- Impressions ----------
 function ImpressionsSheet({ id }) {
   const g = getGame(id);
@@ -381,4 +411,5 @@ export const SHEETS = {
   replay: ReplaySheet,
   impressions: ImpressionsSheet,
   playthroughs: PlaythroughsSheet,
+  hltb: HltbSheet,
 };
