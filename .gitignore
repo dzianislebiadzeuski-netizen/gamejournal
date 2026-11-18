@@ -8,3 +8,5 @@ android/app/release
 *.keystore
 *.jks
 .DS_Store
+
+_signing/
