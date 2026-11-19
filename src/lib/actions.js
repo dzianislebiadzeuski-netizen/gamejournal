@@ -11,6 +11,8 @@ export function addFromSearch(res, { status, top = false, platform = '' }) {
     year: res.year,
     cover: res.cover,
     genres: res.genres || [],
+    genreSlugs: res.genreSlugs || [],
+    slug: res.slug,
     type: online ? 'online' : 'game',
     status,
     top: status === 'wish' ? top : false,
@@ -24,7 +26,7 @@ export function addFromSearch(res, { status, top = false, platform = '' }) {
 export function addSimilarToWish(s) {
   const existing = findByExt(s.extId);
   if (existing) return existing;
-  const g = addGame({ extId: s.extId, name: s.name, year: s.year, cover: s.cover, genres: s.genres || [], status: 'wish' });
+  const g = addGame({ extId: s.extId, name: s.name, year: s.year, cover: s.cover, genres: s.genres || [], slug: s.slug, status: 'wish' });
   toast(`${s.name} — в «Хочу пройти»`, { label: 'Отменить', fn: () => deleteGame(g.id) });
   enrich(g.id);
   return g;

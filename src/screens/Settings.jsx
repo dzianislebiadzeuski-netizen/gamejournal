@@ -1,10 +1,12 @@
-import { useRef, useState } from 'preact/hooks';
+import { useEffect, useRef, useState } from 'preact/hooks';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Share } from '@capacitor/share';
 import { useStore, back, go, setSettings, exportJson, importJson, toast } from '../lib/store.js';
 import { Icon, ToggleRow, Info, Nav } from '../ui/kit.jsx';
 import { fmtDate, todayISO, gamesWord } from '../lib/util.js';
+import { ensureRuModel, ruModelDownloaded, translateGame } from '../lib/enrich.js';
+import { allGames } from '../lib/store.js';
 
 export function Settings() {
   const { db } = useStore();
@@ -13,6 +15,20 @@ export function Settings() {
   const [pending, setPending] = useState(null); // parsed text waiting for confirm
   const [busy, setBusy] = useState(false);
   const count = Object.keys(db.games).length;
+  const [model, setModel] = useState('?'); // '?', 'yes', 'no', 'busy', 'fail'
+  useEffect(() => { ruModelDownloaded().then((ok) => setModel(ok ? 'yes' : 'no')); }, []);
+  const untranslated = Object.values(db.games).filter((g) => g.summary && g.summary.en && !g.summary.ru).length;
+  const getModel = async () => {
+    setModel('busy');
+    try {
+      await ensureRuModel();
+      setModel('yes');
+      for (const g of allGames().filter((x) => x.summary && x.summary.en && !x.summary.ru)) await translateGame(g.id);
+      toast('Описания переведены');
+    } catch {
+      setModel('fail');
+    }
+  };
 
   const doExport = async () => {
     setBusy(true);
@@ -59,7 +75,7 @@ export function Settings() {
     <>
     <div class="screen" style={{ gap: 14 }}>
       <div>
-        <div class="kicker c">GameJournal 1.1</div>
+        <div class="kicker c">GameJournal 1.3</div>
         <h1 class="title">Настройки</h1>
       </div>
 
@@ -103,7 +119,13 @@ export function Settings() {
             <button role="radio" aria-checked={s.lang === k ? 'true' : 'false'} class={s.lang === k ? 'on' : ''} onClick={() => setSettings({ lang: k })}>{l}</button>
           ))}
         </div>
-        <span class="mono xs muted">перевод делается на телефоне при добавлении игры</span>
+        {Capacitor.isNativePlatform() && (model === 'yes'
+          ? <span class="mono xs muted">языковой пакет скачан{untranslated ? ` · без перевода: ${untranslated}` : ''}</span>
+          : <button class="btn btn-glass btn-sm" style={{ flex: 'none' }} disabled={model === 'busy'} onClick={getModel}>
+              {model === 'busy' ? <><span class="spinner" />Скачиваю…</> : <><Icon n="down" size={16} sw={2} />Скачать перевод (~30 МБ)</>}
+            </button>)}
+        {model === 'fail' && <span class="small muted">Не получилось скачать. Проверь интернет и попробуй ещё раз.</span>}
+        {model === 'yes' && untranslated > 0 && <button class="btn btn-glass btn-sm" style={{ flex: 'none' }} onClick={getModel}>Перевести описания ({untranslated})</button>}
       </div>
 
       <div class="card glass" style={{ gap: 10 }}>
@@ -112,7 +134,7 @@ export function Settings() {
       </div>
 
       {!Capacitor.isNativePlatform() && <Info>Это веб-версия для проверки. Поиск по каталогу работает только в приложении на телефоне.</Info>}
-      <div class="center mono xs muted" style={{ paddingBottom: 10 }}>GameJournal 1.1 · данные только на телефоне</div>
+      <div class="center mono xs muted" style={{ paddingBottom: 10 }}>GameJournal 1.3 · данные только на телефоне</div>
     </div>
     <Nav active="settings" />
     </>

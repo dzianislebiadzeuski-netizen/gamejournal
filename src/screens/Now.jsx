@@ -1,6 +1,6 @@
 import { useRef, useState } from 'preact/hooks';
 import { useStore, go, tab, openSheet, setLibTab } from '../lib/store.js';
-import { Cover, Icon, Nav, Status, useTick, Section } from '../ui/kit.jsx';
+import { Cover, Icon, Nav, Status, useTick, Section, PlatformBadge } from '../ui/kit.jsx';
 import { currentHours, hltbHours, remainingText, lastActivity, openPt, primaryGenre, activeMs, timesCompleted } from '../lib/model.js';
 import { fmtHours, fmtClock, fmtDate, monthName, monthPrep, todayISO, plural } from '../lib/util.js';
 import { computeStats, sumRange, dailyHours } from '../lib/stats.js';
@@ -21,7 +21,7 @@ function Hero({ g }) {
       </button>
       <div class="top-chips">
         {g.active ? <span class="pill-dark live-dot">Идёт сессия</span> : <Status s="playing" label={n ? `Прохождение №${n + 1}` : undefined} />}
-        {g.platform && <span class="pill-dark">{g.platform}</span>}
+        <PlatformBadge p={g.platform} />
       </div>
       <div class="panel">
         <div class="small" style={{ color: '#B9BFCB' }}>{[p && p.start ? `с ${fmtDate(p.start)}` : '', primaryGenre(g)].filter(Boolean).join(' · ')}</div>

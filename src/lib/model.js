@@ -11,7 +11,13 @@ export const STATUS = {
   quit: 'Забросил',
 };
 
-export const PLATFORMS = ['PC', 'PS5', 'PS4', 'Switch', 'Steam Deck', 'Xbox', 'Телефон'];
+export const PLATFORMS = ['PC', 'PS5', 'Xbox'];
+// Brand colours + generic glyphs (no trademarked logos).
+export const PLATFORM_META = {
+  PC: { color: '#4f5d7a', icon: 'monitor' },
+  PS5: { color: '#0070d1', icon: 'pad' },
+  Xbox: { color: '#107c10', icon: 'console' },
+};
 
 export const isOnline = (g) => g.type === 'online';
 export const completed = (g) => (g.playthroughs || []).filter((p) => p.end || p.old);

@@ -7,16 +7,65 @@ import { getGame, updateGame } from './store.js';
 
 const native = Capacitor.isNativePlatform();
 
+const withTimeout = (p, ms) => Promise.race([p, new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), ms))]);
+
+let modelReady = null;
+export function ensureRuModel() {
+  if (!native) return Promise.resolve(false);
+  if (!modelReady) {
+    modelReady = (async () => {
+      const { Translation, Language } = await import('@capacitor-mlkit/translation');
+      await withTimeout(Translation.downloadModel({ language: Language.Russian }), 180000);
+      return true;
+    })().catch((e) => {
+      modelReady = null;
+      throw e;
+    });
+  }
+  return modelReady;
+}
+
+export async function ruModelDownloaded() {
+  if (!native) return false;
+  try {
+    const { Translation, Language } = await import('@capacitor-mlkit/translation');
+    const r = await Translation.getDownloadedModels();
+    return (r.languages || []).includes(Language.Russian);
+  } catch {
+    return false;
+  }
+}
+
+// Paragraph by paragraph: ML Kit handles short chunks far more reliably than one long blob.
 export async function translateToRu(text) {
   if (!text || !native) return null;
   try {
     const { Translation, Language } = await import('@capacitor-mlkit/translation');
-    await Translation.downloadModel({ language: Language.Russian });
-    const r = await Translation.translate({ text, sourceLanguage: Language.English, targetLanguage: Language.Russian });
-    return r.text || null;
+    await ensureRuModel();
+    const parts = text.split(/\n{2,}|\n/).map((x) => x.trim()).filter(Boolean);
+    const out = [];
+    for (const part of parts) {
+      const r = await withTimeout(Translation.translate({ text: part, sourceLanguage: Language.English, targetLanguage: Language.Russian }), 30000);
+      out.push(r.text || part);
+    }
+    return out.join('\n\n') || null;
   } catch (e) {
     console.warn('translate failed', e);
     return null;
+  }
+}
+
+const translating = new Set();
+export async function translateGame(id) {
+  const g = getGame(id);
+  if (!g || !g.summary || !g.summary.en || translating.has(id)) return false;
+  translating.add(id);
+  try {
+    const ru = await translateToRu(g.summary.en);
+    if (ru) updateGame(id, (x) => ({ ...x, summary: { ...x.summary, ru } }));
+    return !!ru;
+  } finally {
+    translating.delete(id);
   }
 }
 
@@ -56,10 +105,7 @@ export async function enrich(id, { force = false } = {}) {
   if (!g || !g.extId || running.has(id)) return;
   if (g.enrichedAt && !force) {
     cacheCover(id);
-    if (g.summary && g.summary.en && !g.summary.ru) {
-      const ru = await translateToRu(g.summary.en);
-      if (ru) updateGame(id, (x) => ({ ...x, summary: { ...x.summary, ru } }));
-    }
+    if (g.summary && g.summary.en && !g.summary.ru) await translateGame(id);
     return;
   }
   running.add(id);
@@ -80,10 +126,7 @@ export async function enrich(id, { force = false } = {}) {
       catalog.similar(g.extId, d.raw).then((sim) => { if (sim.length) updateGame(id, { similar: sim }); }).catch(() => {});
     }
     const cur = getGame(id);
-    if (cur && cur.summary && cur.summary.en && !cur.summary.ru) {
-      const ru = await translateToRu(cur.summary.en);
-      if (ru) updateGame(id, (x) => ({ ...x, summary: { ...x.summary, ru } }));
-    }
+    if (cur && cur.summary && cur.summary.en && !cur.summary.ru) await translateGame(id);
   } finally {
     running.delete(id);
   }

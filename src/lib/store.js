@@ -14,6 +14,7 @@ function defaultDb() {
   return {
     version: 1,
     games: {},
+    discover: { mode: 'for', pages: {}, seen: [] },
     settings: { rawgKey: '', lang: 'ru', countOnline: true, lastBackup: null, onboarded: false },
   };
 }
@@ -106,6 +107,15 @@ function commit() {
 // ---------------- settings ----------------
 export function setSettings(patch) {
   db.settings = { ...db.settings, ...patch };
+  commit();
+}
+
+// ---------------- discover deck ----------------
+export function setDiscover(patch) {
+  const cur = db.discover || { mode: 'for', pages: {}, seen: [] };
+  const next = typeof patch === 'function' ? patch(cur) : { ...cur, ...patch };
+  if (next.seen && next.seen.length > 3000) next.seen = next.seen.slice(-3000);
+  db.discover = next;
   commit();
 }
 
@@ -265,7 +275,7 @@ export function previousHours(g) {
 }
 
 // ---------------- navigation / UI ----------------
-const TABS = ['now', 'library', 'stats', 'settings'];
+const TABS = ['now', 'library', 'discover', 'stats', 'settings'];
 
 function setUi(patch) {
   ui = { ...ui, ...patch };

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'preact/hooks';
 import { useStore, back, openSheet, updateGame, setStatus, startSession, findByExt, go } from '../lib/store.js';
-import { Cover, Icon, Status, Section, Cell, Info, ToggleRow, useTick, Back } from '../ui/kit.jsx';
+import { Cover, Icon, Status, Section, Cell, Info, ToggleRow, useTick, Back, PlatformBadge } from '../ui/kit.jsx';
 import {
   timesCompleted, totalHours, currentHours, hltbHours, remainingText, diffText, openPt, completed, activeMs, daysSince, isOnline, lastCompleted,
 } from '../lib/model.js';
 import { fmtHours, fmtDate, fmtClock, fmtTime, relDay, todayISO, fmtHM, placeholderGradient, monthName } from '../lib/util.js';
 import { toggleSession, toggleFav, addSimilarToWish, removeFromWish } from '../lib/actions.js';
-import { enrich } from '../lib/enrich.js';
+import { enrich, translateGame } from '../lib/enrich.js';
 import { coverUrl, sourceUrl } from '../lib/catalog.js';
 import { dailyHours, sumRange } from '../lib/stats.js';
 
@@ -26,20 +26,24 @@ const Dots = ({ id }) => (
 );
 
 function Sessions({ g }) {
-  const list = [...(g.sessions || [])].reverse().slice(0, 6);
+  const [all, setAll] = useState(false);
+  const sorted = [...(g.sessions || [])].sort((a, b) => b.start - a.start);
+  const list = all ? sorted : sorted.slice(0, 5);
   return (
     <Section title="Сессии" right={<button class="link" onClick={() => openSheet('manual', { id: g.id })}>+ Добавить вручную</button>}>
       {list.length ? (
         <div class="col" style={{ gap: 0 }}>
           {list.map((s) => (
-            <div class="ses">
+            <button class="ses ses-btn" aria-label="Изменить сессию" onClick={() => openSheet('session', { id: g.id, start: s.start })}>
               <Icon n="clock" size={16} color="#8C93A1" />
-              <span style={{ flex: 1, fontWeight: 600 }}>{relDay(todayISO(new Date(s.start)))}
+              <span style={{ flex: 1, fontWeight: 600, textAlign: 'left' }}>{relDay(todayISO(new Date(s.start)))}
                 <span class="mono xs muted" style={{ marginLeft: 8 }}>{s.manual ? 'вручную' : `${fmtTime(s.start)}–${fmtTime(s.end)}`}</span>
               </span>
               <span class="mono" style={{ fontWeight: 600 }}>{fmtHM(s.end - s.start)}</span>
-            </div>
+              <Icon n="chev" size={14} sw={2} color="#8C93A1" />
+            </button>
           ))}
+          {sorted.length > 5 && <button class="link" style={{ alignSelf: 'flex-start', marginTop: 6 }} onClick={() => setAll(!all)}>{all ? 'Свернуть' : `Показать все (${sorted.length})`}</button>}
         </div>
       ) : <span class="small muted" style={{ fontSize: 13 }}>Жми «Сел играть», когда садишься играть, — время посчитается само.</span>}
     </Section>
@@ -48,12 +52,27 @@ function Sessions({ g }) {
 
 function Description({ g, lang }) {
   const [orig, setOrig] = useState(lang === 'en');
+  const [busy, setBusy] = useState(false);
+  const [failed, setFailed] = useState(false);
   const s = g.summary || {};
   if (!s.en && !s.ru) return null;
-  const showRu = !orig && s.ru;
+  const hasRu = !!s.ru;
+  const showRu = !orig && hasRu;
+  const translate = async () => {
+    setBusy(true);
+    setFailed(false);
+    const ok = await translateGame(g.id);
+    setBusy(false);
+    if (ok) setOrig(false);
+    else setFailed(true);
+  };
+  let right;
+  if (hasRu) right = <button class="link" onClick={() => setOrig(!orig)}>{orig ? 'Показать перевод' : 'Показать оригинал'}</button>;
+  else if (s.en) right = busy ? <span class="spinner" /> : <button class="link" onClick={translate}>Перевести</button>;
   return (
-    <Section title="Описание" right={s.ru && s.en ? <button class="link" onClick={() => setOrig(!orig)}>{orig ? 'Перевод (RU)' : 'Оригинал (EN)'}</button> : null}>
+    <Section title="Описание" right={right}>
       <p class="desc" lang={showRu ? 'ru' : 'en'}>{showRu ? s.ru : s.en}</p>
+      {!hasRu && failed && <span class="small muted">Не получилось перевести. Нужен интернет, чтобы один раз скачать языковой пакет (~30 МБ). Попробуй ещё раз или скачай его в настройках.</span>}
     </Section>
   );
 }
@@ -95,16 +114,17 @@ export function Similar({ g }) {
 
 function History({ g }) {
   const pts = completed(g);
-  if (pts.length < 2 && !(pts[0] && pts[0].old)) return null;
+  if (!pts.length) return null;
   return (
-    <Section title="Прохождения">
+    <Section title="Прохождения" right={<button class="link" onClick={() => openSheet('playthroughs', { id: g.id })}>Изменить</button>}>
       <div class="col" style={{ gap: 0 }}>
         {pts.map((p, i) => (
-          <div class="ses">
+          <button class="ses ses-btn" aria-label="Изменить прохождение" onClick={() => openSheet('playthroughs', { id: g.id })}>
             <span class="mono xs muted" style={{ width: 22 }}>#{i + 1}</span>
-            <span style={{ flex: 1, fontWeight: 600 }}>{p.old || !p.end ? 'давно' : `${fmtDate(p.start)} — ${fmtDate(p.end, true)}`}</span>
+            <span style={{ flex: 1, fontWeight: 600, textAlign: 'left' }}>{p.old || !p.end ? 'давно' : `${fmtDate(p.start)} — ${fmtDate(p.end, true)}`}</span>
             <span class="mono" style={{ fontWeight: 600 }}>{p.hours ? fmtHours(p.hours) : '—'}</span>
-          </div>
+            <Icon n="chev" size={14} sw={2} color="#8C93A1" />
+          </button>
         ))}
       </div>
     </Section>
@@ -283,7 +303,7 @@ export function Game({ id }) {
           <div class="chips">
             <Status s={s} label={s === 'done' && n > 1 ? `Пройдено ×${n}` : undefined} />
             {online && <span class="plain">Сетевая</span>}
-            {g.platform && <span class="plain">{g.platform}</span>}
+            <PlatformBadge p={g.platform} />
             {s === 'playing' && n > 0 && <span class="plain">перепрохождение</span>}
           </div>
           <h1 class="gp-title">{g.name}</h1>

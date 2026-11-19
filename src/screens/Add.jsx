@@ -1,7 +1,6 @@
 import { useRef, useState } from 'preact/hooks';
 import { back, replace, addGame, toast, updateGame } from '../lib/store.js';
-import { Icon, Back, Field, Stepper, Rating, ToggleRow, ChipGroup, Info } from '../ui/kit.jsx';
-import { PLATFORMS } from '../lib/model.js';
+import { Icon, Back, Field, Stepper, Rating, ToggleRow, ChipGroup, Info, PlatformPicker } from '../ui/kit.jsx';
 import { todayISO, placeholderGradient } from '../lib/util.js';
 import { coverUrl } from '../lib/catalog.js';
 import { enrich, saveCoverBase64 } from '../lib/enrich.js';
@@ -187,7 +186,7 @@ export function AddManual({ name = '' }) {
       </div>
       <div class="col" style={{ gap: 8 }}>
         <span class="lbl">Платформа</span>
-        <ChipGroup value={platform} onChange={(v) => setPlatform(v === platform ? '' : v)} options={PLATFORMS} />
+        <PlatformPicker value={platform} onChange={setPlatform} />
       </div>
       <button class="btn btn-primary" style={{ flex: 'none' }} disabled={!title.trim()} onClick={save}>
         {status === 'done' || status === 'dropped' ? 'Дальше: даты, часы, оценка' : <><Icon n="plus" size={18} sw={2.2} />Добавить</>}

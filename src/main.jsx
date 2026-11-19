@@ -12,7 +12,7 @@ import { App as CapApp } from '@capacitor/app';
 import { Capacitor, SystemBars, SystemBarsStyle } from '@capacitor/core';
 import { App } from './App.jsx';
 import { load, back, flush, allGames, getDb } from './lib/store.js';
-import { enrich } from './lib/enrich.js';
+import { enrich, translateGame } from './lib/enrich.js';
 
 load().then(() => {
   render(<App />, document.getElementById('app'));
@@ -22,6 +22,10 @@ load().then(() => {
     (async () => {
       for (const g of todo) {
         await enrich(g.id).catch(() => {});
+      }
+      // descriptions that were never translated (e.g. no network for the language pack back then)
+      for (const g of allGames().filter((x) => x.summary && x.summary.en && !x.summary.ru)) {
+        await translateGame(g.id).catch(() => {});
       }
     })();
   }

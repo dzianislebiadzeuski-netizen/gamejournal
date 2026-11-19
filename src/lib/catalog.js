@@ -45,10 +45,18 @@ export async function search(text) {
   return ((d && d.results) || []).map(normalize);
 }
 
+// RAWG often appends a Spanish copy ("Español ...") and markdown leftovers to the English text.
+function cleanDesc(t) {
+  let s = t.replace(/\r/g, '');
+  const cut = s.search(/(^|\n)\s*(Español|Espanol|Descripción)\b/i);
+  if (cut > 0) s = s.slice(0, cut);
+  return s.replace(/#{1,6}\s*/g, '').replace(/\*\*/g, '').replace(/\n{3,}/g, '\n\n').trim();
+}
+
 export async function details(id) {
   const d = await get(`/games/${Number(id)}`);
   if (!d) return null;
-  return { ...normalize(d), summaryEn: (d.description_raw || '').trim(), playtime: d.playtime || null, raw: d };
+  return { ...normalize(d), summaryEn: cleanDesc(d.description_raw || ''), playtime: d.playtime || null, raw: d };
 }
 
 const GENERIC_TAGS = new Set([
@@ -108,8 +116,31 @@ function normalize(g) {
     year: g.released ? Number(g.released.slice(0, 4)) : null,
     cover: g.background_image || null,
     genres: genresRu(g.genres),
+    genreSlugs,
     online: genreSlugs.includes('massively-multiplayer') || (multi && !single),
+    metacritic: g.metacritic || null,
+    platforms: (g.parent_platforms || []).map((p) => PF[p.platform && p.platform.slug]).filter(Boolean),
   };
+}
+
+const PF = { pc: 'PC', playstation: 'PS5', xbox: 'Xbox' };
+export const GENRE_SLUG_BY_RU = Object.fromEntries(Object.entries({
+  action: 'Экшен', indie: 'Инди', adventure: 'Приключения', 'role-playing-games-rpg': 'RPG', strategy: 'Стратегия', shooter: 'Шутер',
+  casual: 'Казуальная', simulation: 'Симулятор', puzzle: 'Головоломка', arcade: 'Аркада', platformer: 'Платформер',
+  'massively-multiplayer': 'MMO', racing: 'Гонки', sports: 'Спорт', fighting: 'Файтинг',
+}).map(([k, v]) => [v, k]));
+
+// Card deck for the "Подборка" tab.
+export async function discover(mode, page, genreSlugs = []) {
+  const today = new Date();
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const base = { parent_platforms: '1,2,3', exclude_additions: 'true', page_size: '30', page: String(page) };
+  let q;
+  if (mode === 'hits') q = { ...base, ordering: '-metacritic', metacritic: '82,100' };
+  else if (mode === 'new') q = { ...base, ordering: '-added', dates: `${iso(new Date(today.getFullYear() - 1, today.getMonth(), today.getDate()))},${iso(today)}` };
+  else q = { ...base, ordering: '-added', ...(genreSlugs.length ? { genres: genreSlugs.slice(0, 3).join(',') } : {}), metacritic: '70,100' };
+  const d = await get('/games', q);
+  return { items: ((d && d.results) || []).filter((g) => g.background_image).map(normalize), more: !!(d && d.next) };
 }
 
 const GENRES = {

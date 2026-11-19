@@ -9,6 +9,7 @@ import { Search } from './screens/Search.jsx';
 import { AddDone, AddManual } from './screens/Add.jsx';
 import { Game } from './screens/Game.jsx';
 import { FinishDone } from './screens/FinishDone.jsx';
+import { Discover } from './screens/Discover.jsx';
 import { SHEETS } from './screens/sheets.jsx';
 
 const SCREENS = {
@@ -23,6 +24,7 @@ const SCREENS = {
   addManual: AddManual,
   game: Game,
   finishDone: FinishDone,
+  discover: Discover,
 };
 
 export function App() {

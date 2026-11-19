@@ -3,7 +3,7 @@ import {
   getGame, closeSheet, replace, go, tab, toast, updateGame, deleteGame, setStatus, startPlaythrough, saveSession,
   addManualTime, setOpenStart, finishPlaythrough, startReplay, previousHours, back, getUi, openSheet,
 } from '../lib/store.js';
-import { Sheet, Icon, ChipGroup, Field, Stepper, Rating, ToggleRow, Info, Cell } from '../ui/kit.jsx';
+import { Sheet, Icon, ChipGroup, Field, Stepper, Rating, ToggleRow, Info, Cell, PlatformPicker } from '../ui/kit.jsx';
 import { PLATFORMS, openPt, currentSessionsMs, hltbHours, hltbSearchUrl, timesCompleted, totalHours, STATUS, completed, currentHours, remainingText, diffText } from '../lib/model.js';
 import { todayISO, isoAddDays, fmtHM, fmtTime, fmtDate, fmtHours } from '../lib/util.js';
 import { addFromSearch } from '../lib/actions.js';
@@ -75,7 +75,7 @@ function AddSheet({ res }) {
       </div>
       <div class="col" style={{ gap: 8 }}>
         <span class="lbl">Платформа</span>
-        <ChipGroup value={platform} onChange={(v) => setPlatform(v === platform ? '' : v)} options={PLATFORMS} />
+        <PlatformPicker value={platform} onChange={setPlatform} />
       </div>
       {(status === 'wish' || status === 'playing') && (
         <Field label="HLTB · основной сюжет, часов (можно потом)" id="ahl" mono value={hl} onInput={setHl} placeholder="например, 28" suffix="ч" inputMode="decimal" />
@@ -148,6 +148,59 @@ function SessionEndSheet({ id, start, end }) {
   );
 }
 
+// ---------- Edit / delete one tracked session ----------
+function SessionEditSheet({ id, start }) {
+  const g = getGame(id);
+  const s0 = g && (g.sessions || []).find((x) => x.start === start);
+  const pad = (n) => String(n).padStart(2, '0');
+  const d0 = s0 ? new Date(s0.start) : new Date();
+  const dur0 = s0 ? s0.end - s0.start : 0;
+  const [date, setDate] = useState(todayISO(d0));
+  const [time, setTime] = useState(`${pad(d0.getHours())}:${pad(d0.getMinutes())}`);
+  const [h, setH] = useState(Math.floor(dur0 / 3600000));
+  const [m, setM] = useState(Math.round((dur0 % 3600000) / 60000));
+  const [confirm, setConfirm] = useState(false);
+  if (!g || !s0) return null;
+  const ms = ((Number(h) || 0) * 60 + (Number(m) || 0)) * 60000;
+  const save = () => {
+    const [y, mo, d] = date.split('-').map(Number);
+    const [hh, mm] = (time || '12:00').split(':').map(Number);
+    const st = new Date(y, mo - 1, d, hh || 0, mm || 0).getTime();
+    updateGame(id, (x) => ({ ...x, sessions: x.sessions.map((q) => (q.start === start ? { ...q, start: st, end: st + ms } : q)).sort((a, b) => a.start - b.start) }));
+    toast('Сессия обновлена');
+    closeSheet();
+  };
+  const del = () => {
+    updateGame(id, (x) => ({ ...x, sessions: x.sessions.filter((q) => q.start !== start) }));
+    toast(`Сессия удалена · ${fmtHM(dur0)}`, { label: 'Вернуть', fn: () => updateGame(id, (x) => ({ ...x, sessions: [...x.sessions, s0].sort((a, b) => a.start - b.start) })) });
+    closeSheet();
+  };
+  return (
+    <Sheet title="Сессия" sub={`${g.name} · ${fmtHM(dur0)}`}>
+      <div class="row" style={{ gap: 10 }}>
+        <Field label="Дата" id="sd" type="date" mono value={date} max={todayISO()} onInput={(v) => v && setDate(v)} />
+        <Field label="Начало" id="st" type="time" mono value={time} onInput={(v) => v && setTime(v)} />
+      </div>
+      <div class="row" style={{ gap: 10 }}>
+        <Stepper id="eh" label="Часы" value={h} onChange={setH} max={23} unit="ч" />
+        <Stepper id="em" label="Минуты" value={m} onChange={setM} step={5} max={59} unit="м" />
+      </div>
+      <button class="btn btn-primary" style={{ flex: 'none' }} disabled={ms <= 0} onClick={save}><Icon n="check" size={18} sw={2.2} />Сохранить · {fmtHM(ms)}</button>
+      {!confirm
+        ? <button class="btn btn-danger" style={{ flex: 'none' }} onClick={() => setConfirm(true)}><Icon n="trash" size={16} sw={2} />Удалить сессию</button>
+        : (
+          <div class="info red" style={{ flexDirection: 'column' }}>
+            <b>Удалить сессию на {fmtHM(dur0)}? Часы игры уменьшатся.</b>
+            <div class="row">
+              <button class="btn btn-glass btn-sm" onClick={() => setConfirm(false)}>Отмена</button>
+              <button class="btn btn-red btn-sm" onClick={del}>Удалить</button>
+            </div>
+          </div>
+        )}
+    </Sheet>
+  );
+}
+
 // ---------- Manual time ----------
 function ManualSheet({ id }) {
   const g = getGame(id);
@@ -206,8 +259,8 @@ function MoreSheet({ id }) {
             {open === 'date' && <div style={{ padding: '4px 4px 8px' }}><Field label="Дата начала" id="ps" type="date" mono value={p.start} max={todayISO()} onInput={(v) => v && setOpenStart(id, v)} /></div>}
           </>
         )}
-        <Row icon="device" title="Платформа" sub={g.platform ? `сейчас: ${g.platform}` : 'для категоризации'} expanded={open === 'pf'} onClick={() => toggle('pf')} />
-        {open === 'pf' && <div style={{ padding: '4px 4px 8px' }}><ChipGroup value={g.platform} onChange={(v) => updateGame(id, { platform: v === g.platform ? '' : v })} options={PLATFORMS} /></div>}
+        <Row icon="monitor" title="Платформа" sub={g.platform ? `сейчас: ${g.platform}` : 'для категоризации'} expanded={open === 'pf'} onClick={() => toggle('pf')} />
+        {open === 'pf' && <div style={{ padding: '4px 4px 8px' }}><PlatformPicker value={g.platform} onChange={(v) => updateGame(id, { platform: v })} /></div>}
         {open !== 'del' ? (
           <Row icon="trash" danger title="Удалить из дневника" sub="насовсем, вместе с часами" onClick={() => setOpen('del')} />
         ) : (
@@ -412,4 +465,5 @@ export const SHEETS = {
   impressions: ImpressionsSheet,
   playthroughs: PlaythroughsSheet,
   hltb: HltbSheet,
+  session: SessionEditSheet,
 };

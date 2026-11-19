@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'preact/hooks';
 import { coverSrc } from '../lib/enrich.js';
 import { placeholderGradient } from '../lib/util.js';
-import { STATUS } from '../lib/model.js';
+import { STATUS, PLATFORM_META } from '../lib/model.js';
 import { closeSheet, tab, useStore, hideToast } from '../lib/store.js';
 
 const P = {
@@ -16,6 +16,10 @@ const P = {
   gear: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>',
   flame: '<path d="M12 3c1 3.5 5 5.5 5 10a5 5 0 0 1-10 0c0-2.5 1.5-4 2.5-5 0 2 1 3 2 3 0-3-1.5-5-.5-8z"/>',
   star: '<path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.1 1 5.8-5.2-2.8-5.2 2.8 1-5.8-4.3-4.1 5.9-.8z"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="2"/><path d="M9 20h6M12 16v4"/>',
+  console: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><circle cx="12" cy="7" r="1.6"/><path d="M10 17h4"/>',
+  cards: '<rect x="7.5" y="3.5" width="11" height="15" rx="2" transform="rotate(8 13 11)"/><rect x="4.5" y="5" width="11" height="15" rx="2" transform="rotate(-6 10 12.5)"/>',
+  undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
   pause: '<path d="M9 5v14M15 5v14"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   cal: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',
@@ -62,6 +66,34 @@ export function Cover({ g, size, style, class: cls, children, label = true }) {
 
 export function Status({ s, label }) {
   return <span class={`status st-${s}`}><i />{label || STATUS[s]}</span>;
+}
+
+export function PlatformBadge({ p, small }) {
+  if (!p) return null;
+  const m = PLATFORM_META[p];
+  if (!m) return <span class="plain">{p}</span>;
+  return (
+    <span class={`pf ${small ? 'sm' : ''}`} style={{ background: m.color }}>
+      <Icon n={m.icon} size={small ? 12 : 14} sw={2} />{p}
+    </span>
+  );
+}
+
+export function PlatformPicker({ value, onChange }) {
+  return (
+    <div class="chips">
+      {Object.keys(PLATFORM_META).map((p) => {
+        const on = value === p;
+        const m = PLATFORM_META[p];
+        return (
+          <button class="chip pfc" aria-pressed={on ? 'true' : 'false'} onClick={() => onChange(on ? '' : p)}
+            style={on ? { background: m.color, borderColor: m.color, color: '#fff' } : {}}>
+            <Icon n={m.icon} size={16} sw={2} color={on ? '#fff' : m.color === '#4f5d7a' ? '#9aa6c0' : m.color} />{p}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 export function Switch({ on }) {
@@ -172,7 +204,7 @@ export function Sheet({ title, sub, children, onClose = closeSheet }) {
 }
 
 export function Nav({ active }) {
-  const items = [['now', 'pad', 'Сейчас'], ['library', 'lib', 'Библиотека'], ['stats', 'stat', 'Статистика'], ['settings', 'gear', 'Настройки']];
+  const items = [['now', 'pad', 'Сейчас'], ['library', 'lib', 'Библиотека'], ['discover', 'cards', 'Подборка'], ['stats', 'stat', 'Статистика'], ['settings', 'gear', 'Настройки']];
   return (
     <nav class="nav">
       {items.map(([k, ic, l]) => (
