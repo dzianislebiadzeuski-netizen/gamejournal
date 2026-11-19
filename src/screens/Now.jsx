@@ -95,7 +95,7 @@ export function Now() {
   const { db } = useStore();
   const games = Object.values(db.games);
   const playing = games.filter((g) => g.status === 'playing').sort((a, b) => (b.active ? 1 : 0) - (a.active ? 1 : 0) || lastActivity(b) - lastActivity(a));
-  const rotation = games.filter((g) => g.status === 'rotation').sort((a, b) => lastActivity(b) - lastActivity(a));
+  const rotation = games.filter((g) => g.status === 'rotation' || (g.net && g.status !== 'playing')).sort((a, b) => lastActivity(b) - lastActivity(a));
   const top = games.filter((g) => g.status === 'wish' && g.top);
   useTick(games.some((g) => g.active));
   const now = new Date();

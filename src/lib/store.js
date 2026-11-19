@@ -205,6 +205,7 @@ export function setOpenStart(id, date) {
 export function startSession(id) {
   updateGame(id, (g) => {
     let next = { ...g, active: { t0: Date.now() } };
+    if (g.net && g.status !== 'playing') return next; // online part of a story game — story status untouched
     if (g.type === 'online' && (g.status === 'wish' || g.status === 'quit')) {
       next.status = 'rotation';
       next.statusAt = Date.now();

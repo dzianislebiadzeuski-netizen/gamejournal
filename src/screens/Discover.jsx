@@ -54,8 +54,10 @@ export function DeckInfoSheet({ g }) {
         {(g.platforms || []).map((p) => <PlatformBadge p={p} small />)}
         {g.metacritic && <span class="pf sm" style={{ background: 'rgba(255,255,255,0.1)' }}>Metacritic {g.metacritic}</span>}
         {g.online && <span class="pf sm" style={{ background: 'var(--grad)' }}><Icon n="repeat" size={12} sw={2} />Сетевая</span>}
+        {g.hybrid && <span class="pf sm" style={{ background: 'rgba(125,69,242,0.55)' }}><Icon n="repeat" size={12} sw={2} />Сюжет + сеть</span>}
       </div>
       {g.online && <span class="small text2">Сетевую игру нельзя пройти: её можно взять в ротацию, бросить или отложить на потом.</span>}
+      {g.hybrid && <span class="small text2">Сюжет можно пройти, а сетевой режим — держать в ротации и трекать время сколько угодно.</span>}
       <div class="col" style={{ gap: 8 }}>
         <div class="between sec-head"><h2 class="sec" style={{ fontSize: 15 }}>{g.online ? 'Об игре' : 'Сюжет'}</h2>
           {desc && (ru ? <button class="link" onClick={() => setRu(null)}>Показать оригинал</button>
@@ -155,6 +157,7 @@ function Card({ g, top, onSwipe, offset, onTap }) {
           {(g.platforms || []).map((p) => <PlatformBadge p={p} small />)}
           {g.metacritic && <span class="pf sm" style={{ background: 'rgba(12,14,19,0.6)' }}>Metacritic {g.metacritic}</span>}
           {g.online && <span class="pf sm" style={{ background: 'var(--grad)' }}><Icon n="repeat" size={12} sw={2} />Сетевая</span>}
+        {g.hybrid && <span class="pf sm" style={{ background: 'rgba(125,69,242,0.55)' }}><Icon n="repeat" size={12} sw={2} />Сюжет + сеть</span>}
         </div>
         <h2>{g.name}</h2>
         <span class="small" style={{ color: '#D6DAE2' }}>{[g.year, (g.genres || []).slice(0, 3).join(' · ')].filter(Boolean).join(' · ')}</span>
@@ -214,7 +217,7 @@ export function Discover() {
     decks[mode] = deck.slice(1);
     markSeen(g);
     if (kind === 'like') {
-      const added = addGame({ extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug, status: 'wish', type: g.online ? 'online' : 'game' });
+      const added = addGame({ extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug, status: 'wish', type: g.online ? 'online' : 'game', hybrid: !!g.hybrid });
       enrich(added.id);
       toast(`${g.name} — в «Хочу ${g.online ? 'поиграть' : 'пройти'}»`);
       history.push({ g, mode, kind, id: added.id });
@@ -244,7 +247,7 @@ export function Discover() {
     if (!g) return;
     decks[mode] = deck.slice(1);
     markSeen(g);
-    go('addDone', { res: { extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug, online: g.online }, mode: kind });
+    go('addDone', { res: { extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug, online: g.online, hybrid: g.hybrid }, mode: kind });
   };
 
   deckActions.swipe = (dir) => setOffset(dir);

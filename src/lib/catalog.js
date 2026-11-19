@@ -92,7 +92,7 @@ export async function similar(id, raw) {
     if (out.size < 9 && tags.length) add((await get('/games', { ...q, tags: String(tags[0]) })).results);
     if (out.size < 9 && genres) add((await get('/games', { ...q, genres })).results);
   } catch {}
-  return [...out.values()].slice(0, 9).map((g) => ({ extId: g.extId, name: g.name, cover: g.cover, year: g.year, genres: g.genres, slug: g.slug, online: g.online }));
+  return [...out.values()].slice(0, 9).map((g) => ({ extId: g.extId, name: g.name, cover: g.cover, year: g.year, genres: g.genres, slug: g.slug, online: g.online, hybrid: g.hybrid }));
 }
 
 // RAWG images are landscape; the app crops them with object-fit. Request a resized copy to save traffic.
@@ -102,13 +102,29 @@ export function coverUrl(url, size = 'big') {
   return url.replace('/media/', size === 'small' ? '/media/resize/420/-/' : '/media/resize/640/-/');
 }
 
-const ONLINE_TAGS = ['multiplayer', 'online-multiplayer', 'massively-multiplayer', 'mmo', 'online-pvp', 'pvp', 'battle-royale', 'moba'];
+const has = (list, ...xs) => xs.some((x) => list.includes(x));
+
+// How a game is played, from RAWG genres + tags:
+//  'online' — only multiplayer, nothing to finish (Dota, CS);
+//  'hybrid' — a story you can finish plus a competitive / MMO online part (GTA V);
+//  'story'  — a story game, including co-op ones, local or online (It Takes Two).
+export function playMode(genreSlugs, tagSlugs) {
+  const mmo = genreSlugs.includes('massively-multiplayer') || has(tagSlugs, 'mmo', 'mmorpg', 'battle-royale', 'moba', 'esports', 'e-sports');
+  const pvp = has(tagSlugs, 'pvp', 'online-pvp', 'competitive', 'team-based', 'pvpve', 'battle-royale', 'moba');
+  const story = has(tagSlugs, 'singleplayer', 'story-rich', 'story', 'campaign', 'co-op-campaign', 'narration');
+  const coop = has(tagSlugs, 'co-op', 'online-co-op', 'cooperative', 'local-co-op', 'split-screen');
+  const multi = has(tagSlugs, 'multiplayer', 'online-multiplayer', 'local-multiplayer');
+  if (story) return mmo || pvp ? 'hybrid' : 'story';
+  if (mmo || pvp) return 'online';
+  if (coop) return 'story'; // a co-op adventure is still something you finish
+  if (multi) return 'online';
+  return 'story';
+}
 
 function normalize(g) {
   const tagSlugs = (g.tags || []).map((t) => t.slug);
   const genreSlugs = (g.genres || []).map((x) => x.slug);
-  const single = tagSlugs.includes('singleplayer');
-  const multi = genreSlugs.includes('massively-multiplayer') || tagSlugs.some((t) => ONLINE_TAGS.includes(t));
+  const mode = playMode(genreSlugs, tagSlugs);
   return {
     extId: g.id,
     slug: g.slug,
@@ -117,7 +133,8 @@ function normalize(g) {
     cover: g.background_image || null,
     genres: genresRu(g.genres),
     genreSlugs,
-    online: genreSlugs.includes('massively-multiplayer') || (multi && !single),
+    online: mode === 'online',
+    hybrid: mode === 'hybrid',
     metacritic: g.metacritic || null,
     platforms: (g.parent_platforms || []).map((p) => PF[p.platform && p.platform.slug]).filter(Boolean),
   };

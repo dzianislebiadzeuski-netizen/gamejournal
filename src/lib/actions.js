@@ -4,7 +4,7 @@ import { enrich } from './enrich.js';
 import { todayISO } from './util.js';
 
 export function addFromSearch(res, { status, top = false, platform = '' }) {
-  const online = status === 'rotation';
+  const online = status === 'rotation' && !res.hybrid;
   const g = addGame({
     extId: res.extId,
     name: res.name,
@@ -14,6 +14,8 @@ export function addFromSearch(res, { status, top = false, platform = '' }) {
     genreSlugs: res.genreSlugs || [],
     slug: res.slug,
     type: online ? 'online' : 'game',
+    hybrid: !!res.hybrid,
+    net: !!res.hybrid && status === 'rotation',
     status,
     top: status === 'wish' ? top : false,
     platform,

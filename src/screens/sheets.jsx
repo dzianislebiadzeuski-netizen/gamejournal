@@ -76,8 +76,9 @@ function AddSheet({ res }) {
         </R>
         {!res.online && <R k="playing" title="Прохожу сейчас" sub="в «Играю сейчас», начало — сегодня" />}
         {!res.online && <R k="done" title="Уже прошёл" sub="укажешь даты, часы и оценку" />}
-        <R k="rotation" title="Сетевая — играю" sub="в «В ротации», часы через таймер" />
+        <R k="rotation" title={res.hybrid ? 'Играю в сетевой режим' : 'Сетевая — играю'} sub={res.hybrid ? 'в «В ротации»; сюжет можно пройти когда угодно' : 'в «В ротации», часы через таймер'} />
         <R k="dropped" title={res.online ? 'Забросил' : 'Бросил'} sub="сколько успел наиграть и когда бросил" />
+        {res.hybrid && <span class="small muted">Сюжет + сетевой режим: проходи сюжет как обычно, а сетевую часть держи в ротации — время трекается в любом статусе.</span>}
         {res.online && <span class="small muted">Это сетевая игра — её нельзя пройти, только играть в ротации или бросить. Если RAWG ошибся, выбери «Хочу пройти» и начни как обычную.</span>}
       </div>
       <div class="col" style={{ gap: 8 }}>
@@ -334,8 +335,14 @@ function MoreSheet({ id }) {
       <div class="col" style={{ gap: 6 }}>
         {s === 'wish' && g.type !== 'online' && <Row icon="play" title="Начать прохождение" sub="в «Играю сейчас»" onClick={() => openSheet('start', { id })} />}
         {s === 'wish' && g.type === 'online' && <Row icon="play" title="Начать играть" sub="в «В ротации»" onClick={() => act('rotation', `${g.name} — в «В ротации»`)} />}
-        {g.type !== 'online' && (s === 'wish' || s === 'dropped') && <Row icon="repeat" title="Это сетевая игра" sub="перенести в сетевые: без прохождений, только ротация" onClick={() => { updateGame(id, { type: 'online', status: s === 'dropped' ? 'quit' : 'wish' }); closeSheet(); }} />}
-        {g.type === 'online' && (s === 'wish' || s === 'quit') && <Row icon="check" title="Это не сетевая игра" sub="вернуть в обычные, с прохождениями" onClick={() => { updateGame(id, { type: 'game', status: s === 'quit' ? 'dropped' : 'wish' }); closeSheet(); }} />}
+        {g.type !== 'online' && (s === 'wish' || s === 'dropped') && <Row icon="repeat" title="Это сетевая игра" sub="перенести в сетевые: без прохождений, только ротация" onClick={() => { updateGame(id, { type: 'online', hybrid: false, net: false, typeManual: true, status: s === 'dropped' ? 'quit' : 'wish' }); closeSheet(); }} />}
+        {g.type === 'online' && (s === 'wish' || s === 'quit') && <Row icon="check" title="Это не сетевая игра" sub="вернуть в обычные, с прохождениями" onClick={() => { updateGame(id, { type: 'game', typeManual: true, status: s === 'quit' ? 'dropped' : 'wish' }); closeSheet(); }} />}
+        {g.type !== 'online' && s !== 'rotation' && (g.hybrid
+          ? <Row icon={g.net ? 'x' : 'repeat'} title={g.net ? 'Убрать сетевой режим из ротации' : 'Играю в сетевой режим'} sub={g.net ? 'сюжетный статус не изменится' : 'игра появится в «В ротации», время — кнопкой «Сел играть»'} onClick={() => { updateGame(id, { net: !g.net }); toast(g.net ? `${g.name} — убрана из ротации` : `${g.name} — в «В ротации»`); closeSheet(); }} />
+          : <Row icon="repeat" title="Есть сетевой режим" sub="сюжет + сеть: можно держать в ротации и трекать время в любом статусе" onClick={() => { updateGame(id, { hybrid: true, typeManual: true }); toast('Отмечено: сюжет + сетевой режим'); closeSheet(); }} />)}
+        {g.hybrid && s === 'rotation' && <Row icon="play" title="Начать прохождение сюжета" sub="в «Играю сейчас», сетевой режим останется в ротации" onClick={() => { updateGame(id, { net: true }); openSheet('start', { id }); }} />}
+        {g.hybrid && s === 'rotation' && <Row icon="check" title="Сюжет уже пройден" sub="вписать даты и часы прохождения" onClick={() => { updateGame(id, { net: true }); openSheet('playthroughs', { id, add: true }); }} />}
+        {g.hybrid && <Row icon="x" title="Это не сетевая игра" sub="убрать сетевой режим — обычная сюжетная" onClick={() => { updateGame(id, { hybrid: false, net: false, typeManual: true, ...(s === 'rotation' ? { status: 'wish' } : {}) }); closeSheet(); }} />}
         {s === 'paused' && <Row icon="play" title="Продолжить" sub="вернуть в «Играю сейчас»" onClick={() => act('playing', `${g.name} — снова в «Играю сейчас»`)} />}
         {s === 'playing' && <Row icon="pause" title="Отложить" sub="вернусь позже — уйдёт в «Отложено»" onClick={() => act('paused', `${g.name} — в «Отложено»`)} />}
         {(s === 'playing' || s === 'paused') && <Row icon="x" danger title="Бросить" sub="уйдёт в «Брошено», часы сохранятся" onClick={() => act('dropped', `${g.name} — в «Брошено»`)} />}
