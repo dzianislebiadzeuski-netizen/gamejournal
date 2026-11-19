@@ -184,7 +184,7 @@ export function Game({ id }) {
   if (s === 'wish') {
     stats = (
       <div class="card glass"><div class="stats2">
-        <HltbCell g={g} hl={hl} />
+        {online ? <Cell l="Тип" v={<span style={{ fontSize: 16 }}>Сетевая</span>} s="пройти нельзя" /> : <HltbCell g={g} hl={hl} />}
         <Cell l="В списке" v={`${daysSince(todayISO(new Date(g.addedAt)))} дн`} s={`с ${fmtDate(todayISO(new Date(g.addedAt)))}`} />
       </div></div>
     );
@@ -192,7 +192,9 @@ export function Game({ id }) {
       <>
         <ToggleRow on={g.top} onChange={(v) => updateGame(id, { top: v })} icon="flame" color="#FF7A92" title="Топ приоритет" sub="будет наверху «Хочу пройти»" />
         <div class="row">
-          <button class="btn btn-primary" onClick={() => openSheet('start', { id })}><Icon n="play" size={18} />Начать прохождение</button>
+          {online
+            ? <button class="btn btn-primary" onClick={() => setStatus(id, 'rotation')}><Icon n="play" size={18} />Начать играть</button>
+            : <button class="btn btn-primary" onClick={() => openSheet('start', { id })}><Icon n="play" size={18} />Начать прохождение</button>}
           <Dots id={id} />
         </div>
       </>
@@ -303,7 +305,7 @@ export function Game({ id }) {
       <div class="gp-body">
         <div class="col">
           <div class="chips">
-            <Status s={s} label={s === 'done' && n > 1 ? `Пройдено ×${n}` : undefined} />
+            <Status s={s} label={s === 'done' && n > 1 ? `Пройдено ×${n}` : online && s === 'wish' ? 'Хочу поиграть' : undefined} />
             {online && <span class="plain">Сетевая</span>}
             <PlatformBadge p={g.platform} />
             {s === 'playing' && n > 0 && <span class="plain">перепрохождение</span>}
@@ -326,7 +328,7 @@ export function Game({ id }) {
         <History g={g} />
         <Description g={g} lang={db.settings.lang} />
         {n > 0 && !online && <Similar g={g} />}
-        {n === 0 && !online && g.extId && (
+        {n === 0 && !online && g.extId && s !== 'dropped' && (
           <Section title="Похожие игры"><div class="dashed">Похожие игры появятся,<br />когда пройдёшь эту</div></Section>
         )}
         {g.extId && <div class="center xs muted">Данные и изображения: <a href={sourceUrl(g.slug)}>RAWG</a></div>}

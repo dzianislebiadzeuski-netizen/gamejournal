@@ -44,7 +44,8 @@ export function AddDone({ res, platform, mode = 'done' }) {
       const [y, m, d] = end.split('-').map(Number);
       const t = new Date(y, m - 1, d, 12).getTime();
       data = {
-        status: 'dropped',
+        status: online ? 'quit' : 'dropped',
+        type: online ? 'online' : 'game',
         statusAt: old ? Date.now() : t,
         baseHours: old ? h : 0,
         sessions: !old && h > 0 ? [{ start: t, end: t + h * 3600000, manual: true }] : [],
@@ -57,7 +58,7 @@ export function AddDone({ res, platform, mode = 'done' }) {
       pts.push(old ? { start: null, end: null, hours: h, old: true } : { start, end, hours: h, old: false });
       data = { status: 'done', playthroughs: pts, replay: rp };
     }
-    const g = addGame({ ...rest, extId: res.extId || undefined, type: 'game', platform: platform || '', rating, impressions: imp.trim(), fav, ...data, ...(hlv > 0 ? { hltb: { main: Math.round(hlv * 10) / 10, src: 'manual' } } : {}) });
+    const g = addGame({ ...rest, extId: res.extId || undefined, type: online && dropped ? 'online' : 'game', platform: platform || '', rating, impressions: imp.trim(), fav, ...data, ...(hlv > 0 ? { hltb: { main: Math.round(hlv * 10) / 10, src: 'manual' } } : {}) });
     if (coverData) {
       const patch = await saveCoverBase64(g.id, coverData.split(',')[1]).catch(() => null);
       if (patch) updateGame(g.id, patch);
@@ -71,7 +72,7 @@ export function AddDone({ res, platform, mode = 'done' }) {
     <div class="screen no-nav" style={{ gap: 14 }}>
       <div class="between" style={{ alignItems: 'center' }}>
         <Back onClick={back} />
-        <span style={{ fontFamily: 'var(--unb)', fontSize: 15, fontWeight: 600 }}>{dropped ? 'Бросил' : 'Уже прошёл'}</span>
+        <span style={{ fontFamily: 'var(--unb)', fontSize: 15, fontWeight: 600 }}>{dropped ? (res.online ? 'Забросил' : 'Бросил') : 'Уже прошёл'}</span>
         <span style={{ width: 44 }} />
       </div>
       <Header res={{ ...res, platform }} />
@@ -93,7 +94,7 @@ export function AddDone({ res, platform, mode = 'done' }) {
           <Stepper id="h" label={dropped ? 'Успел наиграть' : 'Часов'} value={hours} onChange={setHours} unit="ч" max={2000} />
           {!dropped && <Stepper id="n" label="Раз пройдено" value={times} onChange={setTimes} min={1} max={50} unit="×" />}
         </div>
-        <Field label="HLTB · основной сюжет, часов (можно потом)" id="hlt" mono value={hl} onInput={setHl} placeholder="например, 28" suffix="ч" inputMode="decimal" />
+        {!(dropped && res.online) && <Field label="HLTB · основной сюжет, часов (можно потом)" id="hlt" mono value={hl} onInput={setHl} placeholder="например, 28" suffix="ч" inputMode="decimal" />}
       </div>
       <div class="card glass">
         <div class="between"><span class="lbl">Оценка</span><span class="mono xs muted">1–10, можно не ставить</span></div>
@@ -108,7 +109,7 @@ export function AddDone({ res, platform, mode = 'done' }) {
         {!dropped && <ToggleRow on={rp} onChange={setRp} icon="book" color="#6CC0FF" fillIcon title="Хочу перепройти" />}
       </div>
       <button class="btn btn-primary" style={{ flex: 'none' }} onClick={save}>
-        <Icon n="check" size={18} sw={2.2} />{dropped ? 'Добавить в «Брошено»' : 'Добавить в «Пройдено»'}
+        <Icon n="check" size={18} sw={2.2} />{dropped ? (res.online ? 'Добавить как заброшенную' : 'Добавить в «Брошено»') : 'Добавить в «Пройдено»'}
       </button>
     </div>
   );

@@ -35,6 +35,7 @@ function AddSheet({ res }) {
   const add = () => {
     if (status === 'done' || status === 'dropped') return go('addDone', { res, platform, mode: status });
     const g = addFromSearch(res, { status, top, platform });
+    if (res.online && status === 'wish') updateGame(g.id, { type: 'online' });
     const hlv = Number(String(hl).replace(',', '.')) || 0;
     if (hlv > 0 && status !== 'rotation') updateGame(g.id, { hltb: { main: Math.round(hlv * 10) / 10, src: 'manual' } });
     const where = { wish: '«Хочу пройти»', playing: '«Играю сейчас»', rotation: '«В ротации»' }[status];
@@ -69,10 +70,11 @@ function AddSheet({ res }) {
             <span class={`switch ${top ? 'on' : ''}`}><i /></span>
           </button>
         </R>
-        <R k="playing" title="Прохожу сейчас" sub="в «Играю сейчас», начало — сегодня" />
-        <R k="done" title="Уже прошёл" sub="укажешь даты, часы и оценку" />
-        <R k="dropped" title="Бросил" sub="сколько успел наиграть и когда бросил" />
+        {!res.online && <R k="playing" title="Прохожу сейчас" sub="в «Играю сейчас», начало — сегодня" />}
+        {!res.online && <R k="done" title="Уже прошёл" sub="укажешь даты, часы и оценку" />}
         <R k="rotation" title="Сетевая — играю" sub="в «В ротации», часы через таймер" />
+        <R k="dropped" title={res.online ? 'Забросил' : 'Бросил'} sub="сколько успел наиграть и когда бросил" />
+        {res.online && <span class="small muted">Это сетевая игра — её нельзя пройти, только играть в ротации или бросить. Если RAWG ошибся, выбери «Хочу пройти» и начни как обычную.</span>}
       </div>
       <div class="col" style={{ gap: 8 }}>
         <span class="lbl">Платформа</span>
@@ -244,7 +246,10 @@ function MoreSheet({ id }) {
   return (
     <Sheet title={g.name} sub={`${STATUS[s]}${totalHours(g) ? ' · ' + fmtHours(totalHours(g)) : ''}`}>
       <div class="col" style={{ gap: 6 }}>
-        {s === 'wish' && <Row icon="play" title="Начать прохождение" sub="в «Играю сейчас»" onClick={() => openSheet('start', { id })} />}
+        {s === 'wish' && g.type !== 'online' && <Row icon="play" title="Начать прохождение" sub="в «Играю сейчас»" onClick={() => openSheet('start', { id })} />}
+        {s === 'wish' && g.type === 'online' && <Row icon="play" title="Начать играть" sub="в «В ротации»" onClick={() => act('rotation', `${g.name} — в «В ротации»`)} />}
+        {g.type !== 'online' && (s === 'wish' || s === 'dropped') && <Row icon="repeat" title="Это сетевая игра" sub="перенести в сетевые: без прохождений, только ротация" onClick={() => { updateGame(id, { type: 'online', status: s === 'dropped' ? 'quit' : 'wish' }); closeSheet(); }} />}
+        {g.type === 'online' && (s === 'wish' || s === 'quit') && <Row icon="check" title="Это не сетевая игра" sub="вернуть в обычные, с прохождениями" onClick={() => { updateGame(id, { type: 'game', status: s === 'quit' ? 'dropped' : 'wish' }); closeSheet(); }} />}
         {s === 'paused' && <Row icon="play" title="Продолжить" sub="вернуть в «Играю сейчас»" onClick={() => act('playing', `${g.name} — снова в «Играю сейчас»`)} />}
         {s === 'playing' && <Row icon="pause" title="Отложить" sub="вернусь позже — уйдёт в «Отложено»" onClick={() => act('paused', `${g.name} — в «Отложено»`)} />}
         {(s === 'playing' || s === 'paused') && <Row icon="x" danger title="Бросить" sub="уйдёт в «Брошено», часы сохранятся" onClick={() => act('dropped', `${g.name} — в «Брошено»`)} />}

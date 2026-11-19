@@ -11,14 +11,16 @@ const MODES = [['for', 'Для тебя'], ['hits', 'Хиты'], ['new', 'Нов
 const decks = { for: [], hits: [], new: [] };
 const history = [];
 // set by the mounted Discover screen so the info sheet can act on the top card
-const deckActions = { swipe: () => {}, already: () => {} }; // already(mode: 'done' | 'dropped')
+const deckActions = { swipe: () => {}, already: () => {}, rotate: () => {} }; // already(mode: 'done' | 'dropped')
 const descCache = new Map();
 
-function DeckButtons({ disabled, onSkip, onDone, onDrop, onLike }) {
+function DeckButtons({ disabled, online, onSkip, onDone, onDrop, onLike }) {
   return (
     <div class="deck-btns">
       <button class="db skip" aria-label="Мимо" disabled={disabled} onClick={onSkip}><Icon n="x" size={22} sw={2.4} /></button>
-      <button class="db done" aria-label="Уже прошёл" disabled={disabled} onClick={onDone}><Icon n="check" size={18} sw={2.4} /><span>Прошёл</span></button>
+      {online
+        ? <button class="db done" aria-label="Играю — в ротацию" disabled={disabled} onClick={onDone}><Icon n="play" size={14} /><span>Играю</span></button>
+        : <button class="db done" aria-label="Уже прошёл" disabled={disabled} onClick={onDone}><Icon n="check" size={18} sw={2.4} /><span>Прошёл</span></button>}
       <button class="db drop" aria-label="Уже бросил" disabled={disabled} onClick={onDrop}><Icon n="leave" size={16} sw={2.2} /><span>Бросил</span></button>
       <button class="db like" aria-label="Хочу пройти" disabled={disabled} onClick={onLike}><Icon n="heart" size={22} sw={2} fill="#fff" color="#fff" /></button>
     </div>
@@ -51,9 +53,11 @@ export function DeckInfoSheet({ g }) {
       <div class="row" style={{ flexWrap: 'wrap', gap: 6 }}>
         {(g.platforms || []).map((p) => <PlatformBadge p={p} small />)}
         {g.metacritic && <span class="pf sm" style={{ background: 'rgba(255,255,255,0.1)' }}>Metacritic {g.metacritic}</span>}
+        {g.online && <span class="pf sm" style={{ background: 'var(--grad)' }}><Icon n="repeat" size={12} sw={2} />Сетевая</span>}
       </div>
+      {g.online && <span class="small text2">Сетевую игру нельзя пройти: её можно взять в ротацию, бросить или отложить на потом.</span>}
       <div class="col" style={{ gap: 8 }}>
-        <div class="between sec-head"><h2 class="sec" style={{ fontSize: 15 }}>Сюжет</h2>
+        <div class="between sec-head"><h2 class="sec" style={{ fontSize: 15 }}>{g.online ? 'Об игре' : 'Сюжет'}</h2>
           {desc && (ru ? <button class="link" onClick={() => setRu(null)}>Показать оригинал</button>
             : busy ? <span class="spinner" /> : <button class="link" onClick={translate}>Перевести</button>)}
         </div>
@@ -61,7 +65,7 @@ export function DeckInfoSheet({ g }) {
         {err && <span class="small muted">{err}</span>}
         {desc != null && <p class="desc deck-desc">{ru || desc || 'У RAWG нет описания этой игры.'}</p>}
       </div>
-      <DeckButtons onSkip={() => run(() => deckActions.swipe(-1))} onDone={() => run(() => deckActions.already('done'))} onDrop={() => run(() => deckActions.already('dropped'))} onLike={() => run(() => deckActions.swipe(1))} />
+      <DeckButtons online={g.online} onSkip={() => run(() => deckActions.swipe(-1))} onDone={() => run(() => (g.online ? deckActions.rotate() : deckActions.already('done')))} onDrop={() => run(() => deckActions.already('dropped'))} onLike={() => run(() => deckActions.swipe(1))} />
     </Sheet>
   );
 }
@@ -141,6 +145,7 @@ function Card({ g, top, onSwipe, offset, onTap }) {
         <div class="row" style={{ flexWrap: 'wrap', gap: 6 }}>
           {(g.platforms || []).map((p) => <PlatformBadge p={p} small />)}
           {g.metacritic && <span class="pf sm" style={{ background: 'rgba(12,14,19,0.6)' }}>Metacritic {g.metacritic}</span>}
+          {g.online && <span class="pf sm" style={{ background: 'var(--grad)' }}><Icon n="repeat" size={12} sw={2} />Сетевая</span>}
         </div>
         <h2>{g.name}</h2>
         <span class="small" style={{ color: '#D6DAE2' }}>{[g.year, (g.genres || []).slice(0, 3).join(' · ')].filter(Boolean).join(' · ')}</span>
@@ -200,9 +205,14 @@ export function Discover() {
     decks[mode] = deck.slice(1);
     markSeen(g);
     if (kind === 'like') {
-      const added = addGame({ extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug, status: 'wish' });
+      const added = addGame({ extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug, status: 'wish', type: g.online ? 'online' : 'game' });
       enrich(added.id);
-      toast(`${g.name} — в «Хочу пройти»`);
+      toast(`${g.name} — в «Хочу ${g.online ? 'поиграть' : 'пройти'}»`);
+      history.push({ g, mode, kind, id: added.id });
+    } else if (kind === 'rotate') {
+      const added = addGame({ extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug, status: 'rotation', type: 'online' });
+      enrich(added.id);
+      toast(`${g.name} — в «В ротации»`);
       history.push({ g, mode, kind, id: added.id });
     } else if (kind === 'skip') {
       history.push({ g, mode, kind });
@@ -225,11 +235,12 @@ export function Discover() {
     if (!g) return;
     decks[mode] = deck.slice(1);
     markSeen(g);
-    go('addDone', { res: { extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug }, mode: kind });
+    go('addDone', { res: { extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug, online: g.online }, mode: kind });
   };
 
   deckActions.swipe = (dir) => setOffset(dir);
   deckActions.already = already;
+  deckActions.rotate = () => act('rotate');
   const top2 = deck.slice(0, 2).reverse();
 
   return (
@@ -262,8 +273,8 @@ export function Discover() {
                 </div>
               )}
             </div>
-            <DeckButtons disabled={!deck.length} onSkip={() => setOffset(-1)} onDone={() => already('done')} onDrop={() => already('dropped')} onLike={() => setOffset(1)} />
-            <div class="center xs muted">Тап — сюжет · влево — мимо · вправо — в «Хочу пройти» · данные: <a href="https://rawg.io">RAWG</a></div>
+            <DeckButtons disabled={!deck.length} online={deck[0] && deck[0].online} onSkip={() => setOffset(-1)} onDone={() => (deck[0] && deck[0].online ? act('rotate') : already('done'))} onDrop={() => already('dropped')} onLike={() => setOffset(1)} />
+            <div class="center xs muted">Тап — сюжет · влево — мимо · вправо — в «{deck[0] && deck[0].online ? 'Хочу поиграть' : 'Хочу пройти'}» · данные: <a href="https://rawg.io">RAWG</a></div>
           </>
         )}
       </div>

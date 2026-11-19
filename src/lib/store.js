@@ -194,14 +194,13 @@ export function setOpenStart(id, date) {
 export function startSession(id) {
   updateGame(id, (g) => {
     let next = { ...g, active: { t0: Date.now() } };
-    if (g.status === 'paused' || g.status === 'dropped' || g.status === 'wish') {
+    if (g.type === 'online' && (g.status === 'wish' || g.status === 'quit')) {
+      next.status = 'rotation';
+      next.statusAt = Date.now();
+    } else if (g.status === 'paused' || g.status === 'dropped' || g.status === 'wish') {
       next.status = 'playing';
       next.statusAt = Date.now();
       if (!openPt(g)) next.playthroughs = [...g.playthroughs, { start: todayISO(), end: null, hours: null }];
-    }
-    if (g.status === 'quit') {
-      next.status = 'rotation';
-      next.statusAt = Date.now();
     }
     return next;
   });
