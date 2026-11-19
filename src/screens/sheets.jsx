@@ -38,7 +38,7 @@ function AddSheet({ res }) {
   const [hl, setHl] = useState('');
   const src = coverUrl(res.cover, 'small');
   const add = () => {
-    if (status === 'done' || status === 'dropped') return go('addDone', { res, platform, mode: status });
+    if (status === 'done' || status === 'dropped' || status === 'paused') return go('addDone', { res, platform, mode: status });
     const g = addFromSearch(res, { status, top, platform });
     if (res.online && status === 'wish') updateGame(g.id, { type: 'online' });
     const hlv = Number(String(hl).replace(',', '.')) || 0;
@@ -58,7 +58,7 @@ function AddSheet({ res }) {
       {status === k && children}
     </div>
   );
-  const label = { wish: 'Добавить в «Хочу пройти»', playing: 'Добавить в «Играю сейчас»', done: 'Дальше: даты, часы, оценка', dropped: 'Дальше: часы и дата', rotation: 'Добавить в «В ротации»' }[status];
+  const label = { wish: 'Добавить в «Хочу пройти»', playing: 'Добавить в «Играю сейчас»', done: 'Дальше: даты, часы, оценка', dropped: 'Дальше: часы и дата', paused: 'Дальше: часы и дата', rotation: 'Добавить в «В ротации»' }[status];
   return (
     <Sheet title="Куда добавить?">
       <div class="row" style={{ gap: 14 }}>
@@ -78,6 +78,7 @@ function AddSheet({ res }) {
         {!res.online && <R k="playing" title="Прохожу сейчас" sub="в «Играю сейчас», начало — сегодня" />}
         {!res.online && <R k="done" title="Уже прошёл" sub="укажешь даты, часы и оценку" />}
         <R k="rotation" title={res.hybrid ? 'Играю в сетевой режим' : 'Сетевая — играю'} sub={res.hybrid ? 'в «В ротации»; сюжет можно пройти когда угодно' : 'в «В ротации», часы через таймер'} />
+        {!res.online && <R k="paused" title="Отложил" sub="начал, прервался — хочу когда-нибудь добить" />}
         <R k="dropped" title={res.online ? 'Забросил' : 'Бросил'} sub="сколько успел наиграть и когда бросил" />
         {res.hybrid && <span class="small muted">Сюжет + сетевой режим: проходи сюжет как обычно, а сетевую часть держи в ротации — время трекается в любом статусе.</span>}
         {res.online && <span class="small muted">Это сетевая игра — её нельзя пройти, только играть в ротации или бросить. Если RAWG ошибся, выбери «Хочу пройти» и начни как обычную.</span>}
@@ -364,8 +365,8 @@ function MoreSheet({ id }) {
         {s === 'dropped' && <Row icon="play" title="Вернуться к игре" sub="снова в «Играю сейчас»" onClick={() => act('playing', `${g.name} — снова в «Играю сейчас»`)} />}
         {p && (
           <>
-            <Row icon="cal" title="Изменить дату начала" sub={`сейчас: ${fmtDate(p.start)}`} expanded={open === 'date'} onClick={() => toggle('date')} />
-            {open === 'date' && <div style={{ padding: '4px 4px 8px' }}><Field label="Дата начала" id="ps" type="date" mono value={p.start} max={todayISO()} onInput={(v) => v && setOpenStart(id, v)} /></div>}
+            <Row icon="cal" title="Изменить дату начала" sub={p.start ? `сейчас: ${fmtDate(p.start)}` : 'не указана'} expanded={open === 'date'} onClick={() => toggle('date')} />
+            {open === 'date' && <div style={{ padding: '4px 4px 8px' }}><Field label="Дата начала" id="ps" type="date" mono value={p.start || ''} max={todayISO()} onInput={(v) => v && setOpenStart(id, v)} /></div>}
           </>
         )}
         <Row icon="monitor" title="Платформа" sub={g.platform ? `сейчас: ${g.platform}` : 'для категоризации'} expanded={open === 'pf'} onClick={() => toggle('pf')} />
@@ -390,7 +391,7 @@ function MoreSheet({ id }) {
 function FinishSheet({ id }) {
   const g = getGame(id);
   const p = g && openPt(g);
-  const ses = g ? currentSessionsMs(g) / 3600000 : 0;
+  const ses = g ? currentHours(g) : 0; // tracked sessions + hours played before adding
   const prefill = ses >= 0.5 ? Math.round(ses) : previousHours(g || {}) || (g && hltbHours(g) ? Math.round(hltbHours(g)) : 10);
   const [step, setStep] = useState(1);
   const [start, setStart] = useState((p && p.start) || isoAddDays(todayISO(), -14));

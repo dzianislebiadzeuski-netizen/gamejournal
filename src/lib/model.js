@@ -61,13 +61,16 @@ export const MODE_LABEL = { story: 'сюжет', net: 'сеть' };
 
 // Total hours spent on the game (completed playthroughs' hours + uncovered sessions).
 export function totalHours(g) {
-  const pts = completed(g).reduce((a, p) => a + (p.hours || 0), 0);
+  const op = openPt(g);
+  const pts = completed(g).reduce((a, p) => a + (p.hours || 0), 0) + ((op && op.pre) || 0);
   const ses = uncoveredSessions(g).reduce((a, s) => a + sessMs(s), 0) / 3600000;
   return pts + ses + (g.baseHours || 0);
 }
 
+// hours of the open playthrough: tracked sessions + hours played before it was added ("pre")
 export function currentHours(g) {
-  return currentSessionsMs(g) / 3600000;
+  const op = openPt(g);
+  return currentSessionsMs(g) / 3600000 + ((op && op.pre) || 0);
 }
 
 export function lastCompleted(g) {

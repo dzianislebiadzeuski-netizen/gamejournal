@@ -24,7 +24,8 @@ function Header({ res }) {
 
 // "Уже прошёл" / "Бросил": dates (or "давно"), hours, rating, impressions.
 export function AddDone({ res, platform, mode = 'done' }) {
-  const dropped = mode === 'dropped';
+  const paused = mode === 'paused';
+  const dropped = mode === 'dropped' || paused; // both: hours so far + optional period
   // dropped: by default hours are undated — they only count into the stats when a period is set
   const [old, setOld] = useState(dropped);
   const [start, setStart] = useState(isoAddDays(todayISO(), res.online ? -365 : -14));
@@ -43,13 +44,24 @@ export function AddDone({ res, platform, mode = 'done' }) {
     const hlv = Number(String(hl).replace(',', '.')) || 0;
     const { coverData, online, ...rest } = res;
     let data;
-    if (dropped) {
+    if (paused) {
+      const noon = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d, 12).getTime(); };
+      const t0 = noon(from);
+      data = {
+        status: 'paused',
+        type: 'game',
+        statusAt: old ? 0 : noon(end),
+        // dated: hours spread over the period; undated: kept on the playthrough, outside time stats
+        playthroughs: [old ? { start: null, end: null, hours: null, pre: h } : { start: from, end: null, hours: null }],
+        sessions: !old && h > 0 ? [{ start: t0, end: t0 + h * 3600000, manual: true, period: { from, to: end } }] : [],
+      };
+    } else if (dropped) {
       const noon = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d, 12).getTime(); };
       const t0 = noon(from);
       data = {
         status: online ? 'quit' : 'dropped',
         type: online ? 'online' : 'game',
-        statusAt: old ? Date.now() : noon(end),
+        statusAt: old ? 0 : noon(end),
         baseHours: old ? h : 0,
         // hours are spread over the whole period in the stats (2015–2025 stays out of 2026)
         sessions: !old && h > 0 ? [{ start: t0, end: t0 + h * 3600000, manual: true, period: { from, to: end } }] : [],
@@ -64,7 +76,7 @@ export function AddDone({ res, platform, mode = 'done' }) {
       if (patch) updateGame(g.id, patch);
     }
     if (g.extId) enrich(g.id);
-    toast(dropped ? `${g.name} — в «${online ? 'Забросил' : 'Брошено'}»` : `${g.name} — в «Пройдено»${pts.length > 1 ? ` · ×${pts.length}` : ''}`);
+    toast(paused ? `${g.name} — в «Отложено»` : dropped ? `${g.name} — в «${online ? 'Забросил' : 'Брошено'}»` : `${g.name} — в «Пройдено»${pts.length > 1 ? ` · ×${pts.length}` : ''}`);
     replace('game', { id: g.id });
   };
 
@@ -72,19 +84,19 @@ export function AddDone({ res, platform, mode = 'done' }) {
     <div class="screen no-nav" style={{ gap: 14 }}>
       <div class="between" style={{ alignItems: 'center' }}>
         <Back onClick={back} />
-        <span style={{ fontFamily: 'var(--unb)', fontSize: 15, fontWeight: 600 }}>{dropped ? (res.online ? 'Забросил' : 'Бросил') : 'Уже прошёл'}</span>
+        <span style={{ fontFamily: 'var(--unb)', fontSize: 15, fontWeight: 600 }}>{paused ? 'Отложил' : dropped ? (res.online ? 'Забросил' : 'Бросил') : 'Уже прошёл'}</span>
         <span style={{ width: 44 }} />
       </div>
       <Header res={{ ...res, platform }} />
       {dropped ? (
         <>
           <div class="card glass tint">
-            <span class="lbl">{res.online ? 'Когда играл' : 'Когда играл и бросил'}</span>
+            <span class="lbl">{paused ? 'Когда играл' : res.online ? 'Когда играл' : 'Когда играл и бросил'}</span>
             <ChipGroup value={old ? 'old' : 'period'} onChange={(v) => setOld(v === 'old')} options={[['old', 'Без дат'], ['period', 'Указать период']]} />
             {!old && (
               <div class="row" style={{ gap: 10 }}>
                 <Field label="Начал" id="d1" type="date" mono value={start} max={end} onInput={(v) => v && setStart(v)} />
-                <Field label={res.online ? 'Забросил' : 'Бросил'} id="d2" type="date" mono value={end} max={todayISO()} onInput={(v) => v && setEnd(v)} />
+                <Field label={paused ? 'Прервался' : res.online ? 'Забросил' : 'Бросил'} id="d2" type="date" mono value={end} max={todayISO()} onInput={(v) => v && setEnd(v)} />
               </div>
             )}
             {old
@@ -92,7 +104,7 @@ export function AddDone({ res, platform, mode = 'done' }) {
               : <span class="small muted" style={{ fontSize: 13 }}>Часы распределятся по всему периоду — в статистику каждого года попадёт только его доля.</span>}
           </div>
           <div class="card glass">
-            <Stepper id="h" label="Успел наиграть" value={hours} onChange={setHours} unit="ч" max={20000} />
+            <Stepper id="h" label={paused ? 'Уже наиграно' : 'Успел наиграть'} value={hours} onChange={setHours} unit="ч" max={20000} />
             {!res.online && <Field label="HLTB · основной сюжет, часов (можно потом)" id="hlt" mono value={hl} onInput={setHl} placeholder="например, 28" suffix="ч" inputMode="decimal" />}
           </div>
         </>
@@ -111,20 +123,20 @@ export function AddDone({ res, platform, mode = 'done' }) {
           </div>
         </>
       )}
-      <div class="card glass">
+      {!paused && <div class="card glass">
         <div class="between"><span class="lbl">Оценка</span><span class="mono xs muted">1–10, можно не ставить</span></div>
         <Rating value={rating} onChange={setRating} />
-      </div>
+      </div>}
       <div class="card glass">
         <div class="field">
-          <label class="lbl" for="imp">{dropped ? 'Почему бросил, впечатления (можно потом)' : 'Впечатления (можно потом)'}</label>
+          <label class="lbl" for="imp">{paused ? 'Заметки: где остановился, что дальше (можно потом)' : dropped ? 'Почему бросил, впечатления (можно потом)' : 'Впечатления (можно потом)'}</label>
           <textarea id="imp" class="ta" value={imp} onInput={(e) => setImp(e.currentTarget.value)} placeholder={dropped ? 'Пара строк для себя' : 'Что понравилось, что нет'} />
         </div>
         <ToggleRow on={fav} onChange={setFav} icon="heart" color="#FF3D5E" fillIcon title="Любимая" />
         {!dropped && <ToggleRow on={rp} onChange={setRp} icon="book" color="#6CC0FF" fillIcon title="Хочу перепройти" />}
       </div>
       <button class="btn btn-primary" style={{ flex: 'none' }} onClick={save}>
-        <Icon n="check" size={18} sw={2.2} />{dropped ? (res.online ? 'Добавить как заброшенную' : 'Добавить в «Брошено»') : 'Добавить в «Пройдено»'}
+        <Icon n="check" size={18} sw={2.2} />{paused ? 'Добавить в «Отложено»' : dropped ? (res.online ? 'Добавить как заброшенную' : 'Добавить в «Брошено»') : 'Добавить в «Пройдено»'}
       </button>
     </div>
   );
@@ -161,7 +173,7 @@ export function AddManual({ name = '' }) {
   const draft = () => ({ name: title.trim(), genres: genre.trim() ? [genre.trim()] : [], coverData: cover });
 
   const save = async () => {
-    if (status === 'done' || status === 'dropped') return replace('addDone', { res: draft(), platform, mode: status });
+    if (status === 'done' || status === 'dropped' || status === 'paused') return replace('addDone', { res: draft(), platform, mode: status });
     const online = status === 'rotation';
     const { coverData, ...rest } = draft();
     const g = addGame({
@@ -198,14 +210,14 @@ export function AddManual({ name = '' }) {
       <Field label="Жанр" id="mg" value={genre} onInput={setGenre} placeholder="Например, RPG" />
       <div class="col" style={{ gap: 8 }}>
         <span class="lbl">Статус</span>
-        <ChipGroup value={status} onChange={setStatus} options={[['wish', 'Хочу пройти'], ['playing', 'Прохожу'], ['done', 'Пройдено'], ['dropped', 'Брошено'], ['rotation', 'Сетевая']]} />
+        <ChipGroup value={status} onChange={setStatus} options={[['wish', 'Хочу пройти'], ['playing', 'Прохожу'], ['paused', 'Отложено'], ['done', 'Пройдено'], ['dropped', 'Брошено'], ['rotation', 'Сетевая']]} />
       </div>
       <div class="col" style={{ gap: 8 }}>
         <span class="lbl">Платформа</span>
         <PlatformPicker value={platform} onChange={setPlatform} />
       </div>
       <button class="btn btn-primary" style={{ flex: 'none' }} disabled={!title.trim()} onClick={save}>
-        {status === 'done' || status === 'dropped' ? 'Дальше: даты, часы, оценка' : <><Icon n="plus" size={18} sw={2.2} />Добавить</>}
+        {status === 'done' || status === 'dropped' || status === 'paused' ? 'Дальше: даты, часы, оценка' : <><Icon n="plus" size={18} sw={2.2} />Добавить</>}
       </button>
     </div>
   );

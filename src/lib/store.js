@@ -74,7 +74,17 @@ export async function load() {
         if (!lump.length) continue;
         g.baseHours = (g.baseHours || 0) + lump.reduce((a, x) => a + (x.end - x.start) / 3600000, 0);
         g.sessions = g.sessions.filter((x) => !lump.includes(x));
+        if ((g.status === 'dropped' || g.status === 'quit') && !g.sessions.length) g.statusAt = 0;
         migrated = true;
+      }
+      // v1.4: dropped "без дат" used to get today's date — no date means no date
+      for (const g of Object.values(db.games)) {
+        if ((g.status === 'dropped' || g.status === 'quit') && g.statusAt && g.baseHours > 0 && !(g.sessions || []).length
+          && Math.abs(g.statusAt - (g.addedAt || 0)) < 24 * 3600000 && !g.dateFixed) {
+          g.statusAt = 0;
+          g.dateFixed = 1;
+          migrated = true;
+        }
       }
     }
   } catch (e) {

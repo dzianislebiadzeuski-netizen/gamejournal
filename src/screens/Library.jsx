@@ -49,10 +49,10 @@ function Tile({ g, mode }) {
     bottom = h ? fmtHours(h) : null;
   } else if (mode === 'paused') {
     bottom = fmtHours(totalHours(g));
-    sub = `с ${fmtShort(todayISO(new Date(g.statusAt)))}`;
+    sub = g.statusAt ? `с ${fmtShort(todayISO(new Date(g.statusAt)))}` : 'без даты';
   } else if (mode === 'dropped') {
     bottom = fmtHours(totalHours(g));
-    sub = (g.status === 'quit' ? 'забросил · ' : '') + fmtMonthYear(todayISO(new Date(g.statusAt)));
+    sub = (g.status === 'quit' ? 'забросил · ' : '') + (g.statusAt ? fmtMonthYear(todayISO(new Date(g.statusAt))) : 'без даты');
   }
   const ring = g.fav && (mode === 'done' || mode === 'replay');
   return (

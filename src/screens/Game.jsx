@@ -240,7 +240,7 @@ export function Game({ id }) {
     stats = (
       <div class="card glass">
         <div class="stats3">
-          <Cell l="Наиграно" v={fmtHours(cur)} s={`${n ? `№${n + 1} · ` : ''}с ${p ? fmtDate(p.start) : '—'}`} />
+          <Cell l="Наиграно" v={fmtHours(cur)} s={`${n ? `№${n + 1} · ` : ''}${p && p.start ? `с ${fmtDate(p.start)}` : 'дата начала не указана'}`} />
           <HltbCell g={g} hl={hl} />
           <Cell l="Осталось" v={hl ? remainingText(cur, hl).v : '—'} s={hl ? remainingText(cur, hl).s : 'нужно время HLTB'} />
         </div>
@@ -257,7 +257,7 @@ export function Game({ id }) {
     stats = (
       <div class="card glass">
         <div class="stats3">
-          <Cell l="Наиграно" v={fmtHours(cur)} s={`на паузе ${daysSince(todayISO(new Date(g.statusAt)))} дн`} />
+          <Cell l="Наиграно" v={fmtHours(cur)} s={g.statusAt ? `на паузе ${daysSince(todayISO(new Date(g.statusAt)))} дн` : 'на паузе'} />
           <HltbCell g={g} hl={hl} />
           <Cell l="Осталось" v={hl ? remainingText(cur, hl).v : '—'} s={hl ? remainingText(cur, hl).s : 'нужно время HLTB'} />
         </div>
@@ -277,7 +277,7 @@ export function Game({ id }) {
     stats = (
       <div class="card glass"><div class="stats2">
         <Cell l="Наиграно" v={fmtHours(total)} s="нажми, чтобы изменить" onClick={() => openSheet('playthroughs', { id })} />
-        <Cell l="Бросил" v={fmtDate(todayISO(new Date(g.statusAt)), false)} s={String(new Date(g.statusAt).getFullYear())} />
+        <Cell l="Бросил" v={g.statusAt ? fmtDate(todayISO(new Date(g.statusAt)), false) : '—'} s={g.statusAt ? String(new Date(g.statusAt).getFullYear()) : 'дата не указана'} />
       </div></div>
     );
     actions = (
