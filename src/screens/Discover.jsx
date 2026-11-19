@@ -18,10 +18,10 @@ function DeckButtons({ disabled, online, onSkip, onDone, onDrop, onLike }) {
   return (
     <div class="deck-btns">
       <button class="db skip" aria-label="Мимо" disabled={disabled} onClick={onSkip}><Icon n="x" size={22} sw={2.4} /></button>
+      <button class="db drop" aria-label="Уже бросил" disabled={disabled} onClick={onDrop}><Icon n="leave" size={16} sw={2.2} /><span>Бросил</span></button>
       {online
         ? <button class="db done" aria-label="Играю — в ротацию" disabled={disabled} onClick={onDone}><Icon n="play" size={14} /><span>Играю</span></button>
         : <button class="db done" aria-label="Уже прошёл" disabled={disabled} onClick={onDone}><Icon n="check" size={18} sw={2.4} /><span>Прошёл</span></button>}
-      <button class="db drop" aria-label="Уже бросил" disabled={disabled} onClick={onDrop}><Icon n="leave" size={16} sw={2.2} /><span>Бросил</span></button>
       <button class="db like" aria-label="Хочу пройти" disabled={disabled} onClick={onLike}><Icon n="heart" size={22} sw={2} fill="#fff" color="#fff" /></button>
     </div>
   );
