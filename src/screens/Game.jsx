@@ -31,7 +31,7 @@ function Sessions({ g }) {
   const list = all ? sorted : sorted.slice(0, 5);
   return (
     <Section title="Сессии" right={<button class="link" onClick={() => openSheet('manual', { id: g.id })}>+ Добавить вручную</button>}>
-      {list.length ? (
+      {list.length || g.baseHours > 0 ? (
         <div class="col" style={{ gap: 0 }}>
           {list.map((s) => (
             <button class="ses ses-btn" aria-label="Изменить сессию" onClick={() => openSheet('session', { id: g.id, start: s.start })}>
@@ -43,6 +43,14 @@ function Sessions({ g }) {
               <Icon n="chev" size={14} sw={2} color="#8C93A1" />
             </button>
           ))}
+          {g.baseHours > 0 && (all || sorted.length <= 5) && (
+            <button class="ses ses-btn" aria-label="Изменить часы без даты" onClick={() => openSheet('baseHours', { id: g.id })}>
+              <Icon n="cal" size={16} color="#8C93A1" />
+              <span style={{ flex: 1, fontWeight: 600, textAlign: 'left' }}>Давно<span class="mono xs muted" style={{ marginLeft: 8 }}>без даты</span></span>
+              <span class="mono" style={{ fontWeight: 600 }}>{fmtHours(g.baseHours)}</span>
+              <Icon n="chev" size={14} sw={2} color="#8C93A1" />
+            </button>
+          )}
           {sorted.length > 5 && <button class="link" style={{ alignSelf: 'flex-start', marginTop: 6 }} onClick={() => setAll(!all)}>{all ? 'Свернуть' : `Показать все (${sorted.length})`}</button>}
         </div>
       ) : <span class="small muted" style={{ fontSize: 13 }}>Жми «Сел играть», когда садишься играть, — время посчитается само.</span>}

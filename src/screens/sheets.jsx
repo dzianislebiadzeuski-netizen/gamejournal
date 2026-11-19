@@ -240,21 +240,74 @@ function SessionEditSheet({ id, start }) {
 // ---------- Manual time ----------
 function ManualSheet({ id }) {
   const g = getGame(id);
+  const [kind, setKind] = useState('day'); // day | period | old
   const [date, setDate] = useState(todayISO());
+  const [from, setFrom] = useState(isoAddDays(todayISO(), -365));
+  const [to, setTo] = useState(todayISO());
   const [h, setH] = useState(1);
   const [m, setM] = useState(0);
+  const [big, setBig] = useState(100);
   if (!g) return null;
-  const ms = ((Number(h) || 0) * 60 + (Number(m) || 0)) * 60000;
+  const ms = kind === 'day' ? ((Number(h) || 0) * 60 + (Number(m) || 0)) * 60000 : (Number(big) || 0) * 3600000;
+  const add = () => {
+    if (kind === 'day') addManualTime(id, date, ms);
+    else if (kind === 'period') {
+      const a = from <= to ? from : to;
+      const b = from <= to ? to : from;
+      const [y, mo, d] = a.split('-').map(Number);
+      const st = new Date(y, mo - 1, d, 12).getTime();
+      updateGame(id, (x) => ({ ...x, sessions: [...x.sessions, { start: st, end: st + ms, manual: true, period: { from: a, to: b } }].sort((p, q) => p.start - q.start) }));
+    } else updateGame(id, (x) => ({ ...x, baseHours: (x.baseHours || 0) + ms / 3600000 }));
+    toast(`Добавлено ${fmtHM(ms)}${kind === 'old' ? ' · без даты' : ''}`);
+    closeSheet();
+  };
   return (
     <Sheet title="Добавить время" sub={`${g.name} · если забыл нажать «Сел играть»`}>
-      <DatePick label="Когда играл" value={date} onChange={setDate} />
-      <div class="row" style={{ gap: 10 }}>
-        <Stepper id="mh" label="Часы" value={h} onChange={setH} max={23} unit="ч" />
-        <Stepper id="mm" label="Минуты" value={m} onChange={setM} step={15} max={45} unit="м" />
-      </div>
-      <button class="btn btn-primary" style={{ flex: 'none' }} disabled={ms <= 0} onClick={() => { addManualTime(id, date, ms); toast(`Добавлено ${fmtHM(ms)}`); closeSheet(); }}>
+      <ChipGroup value={kind} onChange={setKind} options={[['day', 'Один день'], ['period', 'За период'], ['old', 'Давно']]} />
+      {kind === 'day' && (
+        <>
+          <DatePick label="Когда играл" value={date} onChange={setDate} />
+          <div class="row" style={{ gap: 10 }}>
+            <Stepper id="mh" label="Часы" value={h} onChange={setH} max={23} unit="ч" />
+            <Stepper id="mm" label="Минуты" value={m} onChange={setM} step={15} max={45} unit="м" />
+          </div>
+        </>
+      )}
+      {kind === 'period' && (
+        <>
+          <div class="row" style={{ gap: 10 }}>
+            <Field label="С" id="mf" type="date" mono value={from} max={to} onInput={(v) => v && setFrom(v)} />
+            <Field label="По" id="mt" type="date" mono value={to} max={todayISO()} onInput={(v) => v && setTo(v)} />
+          </div>
+          <Stepper id="mb" label="Часов за период" value={big} onChange={setBig} max={20000} unit="ч" />
+          <span class="small muted" style={{ fontSize: 13 }}>Часы распределятся по дням периода — в статистику каждого года попадёт его доля.</span>
+        </>
+      )}
+      {kind === 'old' && (
+        <>
+          <Stepper id="mb" label="Сколько наиграл" value={big} onChange={setBig} max={20000} unit="ч" />
+          <span class="small muted" style={{ fontSize: 13 }}>Без даты: часы прибавятся к общему времени игры, но не попадут в статистику по месяцам и годам.</span>
+        </>
+      )}
+      <button class="btn btn-primary" style={{ flex: 'none' }} disabled={ms <= 0} onClick={add}>
         <Icon n="plus" size={18} sw={2.2} />Добавить {fmtHM(ms)}
       </button>
+    </Sheet>
+  );
+}
+
+// ---------- Undated hours ("давно") ----------
+function BaseHoursSheet({ id }) {
+  const g = getGame(id);
+  const [v, setV] = useState(g ? Math.round((g.baseHours || 0) * 10) / 10 : 0);
+  if (!g) return null;
+  return (
+    <Sheet title="Давно, без даты" sub={`${g.name} · не идёт в статистику по времени`}>
+      <Stepper id="bh" label="Часов" value={v} onChange={setV} max={20000} unit="ч" />
+      <div class="row">
+        <button class="btn btn-glass" style={{ flex: '0 0 120px' }} onClick={() => { const old = g.baseHours; updateGame(id, { baseHours: 0 }); toast('Часы без даты убраны', { label: 'Вернуть', fn: () => updateGame(id, { baseHours: old }) }); closeSheet(); }}>Убрать</button>
+        <button class="btn btn-primary" onClick={() => { updateGame(id, { baseHours: Number(v) || 0 }); toast('Сохранено'); closeSheet(); }}><Icon n="check" size={18} sw={2.2} />Сохранить</button>
+      </div>
     </Sheet>
   );
 }
@@ -525,6 +578,7 @@ function StatHoursSheet({ period = 'year' }) {
 }
 
 export const SHEETS = {
+  baseHours: BaseHoursSheet,
   statHours: StatHoursSheet,
   add: AddSheet,
   start: StartSheet,

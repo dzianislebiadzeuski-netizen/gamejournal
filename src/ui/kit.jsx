@@ -129,7 +129,7 @@ export function Stepper({ label, value, onChange, step = 1, min = 0, max = 9999,
       <div class="stepper">
         <button aria-label="Меньше" onClick={() => set((Number(value) || 0) - step)}><Icon n="minus" size={18} sw={2.2} /></button>
         <span class="row" style={{ gap: 0 }}>
-          <input id={id} inputMode="decimal" value={value} onInput={(e) => {
+          <input id={id} inputMode="decimal" value={value} style={{ width: `${Math.max(1, String(value ?? '').length) + 0.4}ch`, minWidth: '1.6ch' }} onInput={(e) => {
             const v = e.currentTarget.value.replace(',', '.');
             if (v === '') return onChange('');
             const n = Number(v);
