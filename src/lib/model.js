@@ -38,18 +38,26 @@ function ptRange(p) {
 // Sessions not already accounted for by a completed playthrough with its own hours.
 export function uncoveredSessions(g) {
   const ranges = completed(g).filter((p) => p.hours != null).map(ptRange).filter(Boolean);
-  return (g.sessions || []).filter((s) => !ranges.some(([a, b]) => s.start >= a && s.start < b));
+  // online-mode sessions of a story+online game never belong to a story playthrough
+  return (g.sessions || []).filter((s) => s.mode === 'net' || !ranges.some(([a, b]) => s.start >= a && s.start < b));
 }
 
 export function currentSessionsMs(g) {
   const p = openPt(g);
   const from = p && p.start ? parseISO(p.start).getTime() : 0;
-  return (g.sessions || []).filter((s) => s.start >= from).reduce((a, s) => a + sessMs(s), 0);
+  return (g.sessions || []).filter((s) => s.start >= from && s.mode !== 'net').reduce((a, s) => a + sessMs(s), 0);
 }
 
 export function activeMs(g, now = Date.now()) {
   return g.active ? now - g.active.t0 : 0;
 }
+
+// running time that counts toward the story playthrough (not the online mode)
+export const storyActiveMs = (g) => (g.active && g.active.mode !== 'net' ? activeMs(g) : 0);
+
+// hours played in the online mode of a story+online game
+export const netSessions = (g) => (g.sessions || []).filter((s) => s.mode === 'net');
+export const MODE_LABEL = { story: 'сюжет', net: 'сеть' };
 
 // Total hours spent on the game (completed playthroughs' hours + uncovered sessions).
 export function totalHours(g) {

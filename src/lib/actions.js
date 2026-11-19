@@ -41,14 +41,17 @@ export function removeFromWish(id) {
   toast(`${g.name} убрана из «Хочу пройти»`, { label: 'Отменить', fn: () => addGame(g) });
 }
 
-export function toggleSession(id) {
+// mode: 'story' | 'net' for story+online games; without it they get asked what they're playing
+export function toggleSession(id, mode = null) {
   const g = getGame(id);
   if (!g) return;
   if (g.active) {
     const r = stopSession(id);
     if (r) openSheet('sessionEnd', { id, ...r });
+  } else if (g.hybrid && !mode) {
+    openSheet('pickMode', { id });
   } else {
-    startSession(id);
+    startSession(id, mode);
   }
 }
 

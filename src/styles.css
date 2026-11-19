@@ -399,3 +399,6 @@ textarea.ta:focus { border-color: rgba(108,192,255,0.6); }
 .hrow .tr i { display: block; height: 100%; border-radius: 3px; background: var(--grad); }
 .ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .tap-card { text-align: left; color: inherit; font: inherit; }
+
+.mode-tag { margin-left: 8px; font: 600 10px var(--mono, monospace); padding: 2px 6px; border-radius: 6px; background: rgba(255,255,255,0.08); color: #C3C8D2; vertical-align: 1px; }
+.mode-tag.net { background: rgba(125,69,242,0.3); color: #D9C8FF; }

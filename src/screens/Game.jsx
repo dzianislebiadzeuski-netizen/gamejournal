@@ -2,7 +2,7 @@ import { useEffect, useState } from 'preact/hooks';
 import { useStore, back, openSheet, updateGame, setStatus, startSession, findByExt, go, toast } from '../lib/store.js';
 import { Cover, Icon, Status, Section, Cell, Info, ToggleRow, useTick, Back, PlatformBadge } from '../ui/kit.jsx';
 import {
-  timesCompleted, totalHours, currentHours, uncoveredSessions, hltbHours, remainingText, diffText, openPt, completed, activeMs, daysSince, isOnline, lastCompleted,
+  timesCompleted, totalHours, currentHours, uncoveredSessions, storyActiveMs, netSessions, MODE_LABEL, hltbHours, remainingText, diffText, openPt, completed, activeMs, daysSince, isOnline, lastCompleted,
 } from '../lib/model.js';
 import { fmtHours, fmtDate, fmtClock, fmtTime, relDay, todayISO, fmtHM, placeholderGradient, monthName, periodLabel } from '../lib/util.js';
 import { toggleSession, toggleFav, addSimilarToWish, removeFromWish } from '../lib/actions.js';
@@ -10,12 +10,12 @@ import { enrich, translateGame } from '../lib/enrich.js';
 import { coverUrl, sourceUrl } from '../lib/catalog.js';
 import { dailyHours, sumRange } from '../lib/stats.js';
 
-function SessionButton({ g, children }) {
+function SessionButton({ g, mode = null, children }) {
   return (
     <div class="row">
       {g.active
-        ? <button class="btn btn-red" onClick={() => toggleSession(g.id)}><Icon n="stop" size={16} />Стоп <span class="mono">{fmtClock(activeMs(g))}</span></button>
-        : <button class="btn btn-primary" onClick={() => toggleSession(g.id)}><Icon n="play" size={18} />Сел играть</button>}
+        ? <button class="btn btn-red" onClick={() => toggleSession(g.id)}><Icon n="stop" size={16} />Стоп{g.active.mode ? ` · ${MODE_LABEL[g.active.mode]}` : ''} <span class="mono">{fmtClock(activeMs(g))}</span></button>
+        : <button class="btn btn-primary" onClick={() => toggleSession(g.id, mode)}><Icon n="play" size={18} />Сел играть</button>}
       {children}
     </div>
   );
@@ -34,16 +34,17 @@ function NetCard({ g }) {
   const now = new Date();
   // online part = sessions outside finished story playthroughs (+ a running session)
   const m0 = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const ses = uncoveredSessions(g);
+  const ses = netSessions(g);
   const hrs = (list) => list.reduce((a, x) => a + (x.end - x.start), 0) / 3600000;
-  const month = hrs(ses.filter((x) => x.start >= m0 && !x.period)) + (g.active ? activeMs(g) / 3600000 : 0);
-  const all = hrs(ses) + (g.active ? activeMs(g) / 3600000 : 0);
+  const live = g.active && g.active.mode === 'net' ? activeMs(g) / 3600000 : 0;
+  const month = hrs(ses.filter((x) => x.start >= m0 && !x.period)) + live;
+  const all = hrs(ses) + live;
   return (
     <div class="card glass" style={{ gap: 12 }}>
       <div class="between"><span class="lbl" style={{ display: 'flex', gap: 6, alignItems: 'center' }}><Icon n="repeat" size={14} color="#B18CFF" />Сетевой режим · в ротации</span>
         <button class="link" onClick={() => { updateGame(g.id, { net: false }); toast(`${g.name} — убрана из ротации`); }}>Убрать</button></div>
       <span class="small text2">{monthName(now.getMonth())}: {fmtHours(month)} · всего в сети {fmtHours(all)}</span>
-      {g.status !== 'playing' && <SessionButton g={g} />}
+      {(g.status !== 'playing' || (g.active && g.active.mode === 'net')) && <SessionButton g={g} mode="net" />}
     </div>
   );
 }
@@ -65,6 +66,7 @@ function Sessions({ g }) {
               <Icon n="clock" size={16} color="#8C93A1" />
               <span style={{ flex: 1, fontWeight: 600, textAlign: 'left' }}>{s.period ? periodLabel(s.period.from, s.period.to) : relDay(todayISO(new Date(s.start)))}
                 <span class="mono xs muted" style={{ marginLeft: 8 }}>{s.period ? 'период' : s.manual ? 'вручную' : `${fmtTime(s.start)}–${fmtTime(s.end)}`}</span>
+                {g.hybrid && <span class={`mode-tag ${s.mode === 'net' ? 'net' : ''}`}>{MODE_LABEL[s.mode || 'story']}</span>}
               </span>
               <span class="mono" style={{ fontWeight: 600 }}>{fmtHM(s.end - s.start)}</span>
               <Icon n="chev" size={14} sw={2} color="#8C93A1" />
@@ -208,7 +210,7 @@ export function Game({ id }) {
   const hl = hltbHours(g);
   const p = openPt(g);
   const total = totalHours(g) + activeMs(g) / 3600000;
-  const cur = currentHours(g) + activeMs(g) / 3600000;
+  const cur = currentHours(g) + storyActiveMs(g) / 3600000;
   const online = isOnline(g);
   const meta = [(g.genres || []).slice(0, 3).join(' · '), g.year].filter(Boolean).join(' · ');
 

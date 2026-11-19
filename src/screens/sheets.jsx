@@ -1,13 +1,14 @@
 import { useState } from 'preact/hooks';
 import {
   getGame, closeSheet, replace, go, tab, toast, updateGame, deleteGame, setStatus, startPlaythrough, saveSession,
-  addManualTime, setOpenStart, finishPlaythrough, startReplay, previousHours, back, getUi, openSheet, getDb,
+  addManualTime, startSession, setOpenStart, finishPlaythrough, startReplay, previousHours, back, getUi, openSheet, getDb,
 } from '../lib/store.js';
 import { hoursByGame, computeStats } from '../lib/stats.js';
 import { Cover } from '../ui/kit.jsx';
 import { PtRows, cleanPts } from '../ui/pts.jsx';
 import { monthGen } from '../lib/util.js';
 import { Sheet, Icon, ChipGroup, Field, Stepper, Rating, ToggleRow, Info, Cell, PlatformPicker } from '../ui/kit.jsx';
+import { MODE_LABEL } from '../lib/model.js';
 import { PLATFORMS, openPt, currentSessionsMs, hltbHours, hltbSearchUrl, timesCompleted, totalHours, STATUS, completed, currentHours, remainingText, diffText } from '../lib/model.js';
 import { todayISO, isoAddDays, fmtHM, fmtTime, fmtDate, fmtHours } from '../lib/util.js';
 import { addFromSearch } from '../lib/actions.js';
@@ -110,21 +111,23 @@ function StartSheet({ id }) {
 }
 
 // ---------- After a timer session ----------
-function SessionEndSheet({ id, start, end }) {
+function SessionEndSheet({ id, start, end, mode: mode0 }) {
   const g = getGame(id);
   const [edit, setEdit] = useState(false);
+  const [mode, setMode] = useState(mode0 || (g && g.hybrid ? 'story' : null));
   const dur = end - start;
   const [h, setH] = useState(Math.floor(dur / 3600000));
   const [m, setM] = useState(Math.round((dur % 3600000) / 60000));
   if (!g) return null;
   const save = (ms) => {
-    saveSession(id, start, start + ms);
-    toast(`Сессия сохранена · ${fmtHM(ms)}`);
+    saveSession(id, start, start + ms, g.hybrid ? mode : null);
+    toast(`Сессия сохранена · ${fmtHM(ms)}${g.hybrid ? ` · ${MODE_LABEL[mode]}` : ''}`);
     closeSheet();
   };
   const totalNow = (totalHours(g) * 3600000 + dur);
   return (
     <Sheet title="Сессия закончена" sub={g.name} onClose={() => save(dur)}>
+      {g.hybrid && <ModePick value={mode} onChange={setMode} />}
       {!edit ? (
         <>
           <div class="col" style={{ alignItems: 'center', gap: 6, padding: '10px 0' }}>
@@ -172,6 +175,7 @@ function SessionEditSheet({ id, start }) {
   const [from, setFrom] = useState(s0 && s0.period ? s0.period.from : todayISO(d0));
   const [to, setTo] = useState(s0 && s0.period ? s0.period.to : todayISO(d0));
   const [ph, setPh] = useState(Math.round(dur0 / 360000) / 10);
+  const [mode, setMode] = useState((s0 && s0.mode) || 'story');
   if (!g || !s0) return null;
   const ms = per ? (Number(ph) || 0) * 3600000 : ((Number(h) || 0) * 60 + (Number(m) || 0)) * 60000;
   const save = () => {
@@ -189,6 +193,7 @@ function SessionEditSheet({ id, start }) {
       st = new Date(y, mo - 1, d, hh || 0, mm || 0).getTime();
       extra = { period: undefined };
     }
+    if (g.hybrid) extra.mode = mode;
     updateGame(id, (x) => ({ ...x, sessions: x.sessions.map((q) => (q.start === start ? { ...q, ...extra, start: st, end: st + ms } : q)).sort((a, b) => a.start - b.start) }));
     toast('Сессия обновлена');
     closeSheet();
@@ -200,6 +205,7 @@ function SessionEditSheet({ id, start }) {
   };
   return (
     <Sheet title={per ? 'Период' : 'Сессия'} sub={`${g.name} · ${fmtHM(dur0)}`}>
+      {g.hybrid && <ModePick value={mode} onChange={setMode} />}
       {per ? (
         <>
           <div class="row" style={{ gap: 10 }}>
@@ -248,22 +254,25 @@ function ManualSheet({ id }) {
   const [h, setH] = useState(1);
   const [m, setM] = useState(0);
   const [big, setBig] = useState(100);
+  const [mode, setMode] = useState(g && g.net && g.status !== 'playing' ? 'net' : 'story');
   if (!g) return null;
+  const md = g.hybrid && kind !== 'old' ? mode : null;
   const ms = kind === 'day' ? ((Number(h) || 0) * 60 + (Number(m) || 0)) * 60000 : (Number(big) || 0) * 3600000;
   const add = () => {
-    if (kind === 'day') addManualTime(id, date, ms);
+    if (kind === 'day') addManualTime(id, date, ms, md);
     else if (kind === 'period') {
       const a = from <= to ? from : to;
       const b = from <= to ? to : from;
       const [y, mo, d] = a.split('-').map(Number);
       const st = new Date(y, mo - 1, d, 12).getTime();
-      updateGame(id, (x) => ({ ...x, sessions: [...x.sessions, { start: st, end: st + ms, manual: true, period: { from: a, to: b } }].sort((p, q) => p.start - q.start) }));
+      updateGame(id, (x) => ({ ...x, sessions: [...x.sessions, { start: st, end: st + ms, manual: true, period: { from: a, to: b }, ...(md ? { mode: md } : {}) }].sort((p, q) => p.start - q.start) }));
     } else updateGame(id, (x) => ({ ...x, baseHours: (x.baseHours || 0) + ms / 3600000 }));
     toast(`Добавлено ${fmtHM(ms)}${kind === 'old' ? ' · без даты' : ''}`);
     closeSheet();
   };
   return (
     <Sheet title="Добавить время" sub={`${g.name} · если забыл нажать «Сел играть»`}>
+      {g.hybrid && <ModePick value={mode} onChange={setMode} />}
       <ChipGroup value={kind} onChange={setKind} options={[['day', 'Один день'], ['period', 'За период'], ['old', 'Давно']]} />
       {kind === 'day' && (
         <>
@@ -584,7 +593,35 @@ function StatHoursSheet({ period = 'year' }) {
   );
 }
 
+// Story or online mode — for games that have both.
+function ModePick({ value, onChange }) {
+  return (
+    <div class="col" style={{ gap: 8 }}>
+      <span class="lbl">Что играл</span>
+      <ChipGroup value={value} onChange={onChange} options={[['story', 'Сюжет'], ['net', 'Сетевой режим']]} />
+    </div>
+  );
+}
+
+function PickModeSheet({ id }) {
+  const g = getGame(id);
+  if (!g) return null;
+  const go1 = (mode) => { startSession(id, mode); closeSheet(); };
+  const storySub = g.status === 'playing' ? 'часы пойдут в текущее прохождение'
+    : g.status === 'done' ? 'часы засчитаются игре, статус «Пройдено» останется'
+      : 'игра переедет в «Играю сейчас»';
+  return (
+    <Sheet title="Что играешь?" sub={g.name}>
+      <div class="col" style={{ gap: 8 }}>
+        <button class="menu-row" onClick={() => go1('story')}><Icon n="play" /><span class="t"><b>Сюжет</b><span>{storySub}</span></span></button>
+        <button class="menu-row" onClick={() => go1('net')}><Icon n="repeat" /><span class="t"><b>Сетевой режим</b><span>часы — в сеть, сюжетный статус не изменится</span></span></button>
+      </div>
+    </Sheet>
+  );
+}
+
 export const SHEETS = {
+  pickMode: PickModeSheet,
   baseHours: BaseHoursSheet,
   statHours: StatHoursSheet,
   add: AddSheet,

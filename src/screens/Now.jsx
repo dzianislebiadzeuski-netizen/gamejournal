@@ -1,7 +1,7 @@
 import { useRef, useState } from 'preact/hooks';
 import { useStore, go, tab, openSheet, setLibTab } from '../lib/store.js';
 import { Cover, Icon, Nav, Status, useTick, Section, PlatformBadge } from '../ui/kit.jsx';
-import { currentHours, hltbHours, remainingText, lastActivity, openPt, primaryGenre, activeMs, timesCompleted } from '../lib/model.js';
+import { currentHours, hltbHours, remainingText, lastActivity, openPt, primaryGenre, activeMs, timesCompleted, storyActiveMs } from '../lib/model.js';
 import { fmtHours, fmtClock, fmtDate, monthName, monthPrep, todayISO, plural } from '../lib/util.js';
 import { computeStats, sumRange, dailyHours } from '../lib/stats.js';
 import { toggleSession } from '../lib/actions.js';
@@ -9,7 +9,7 @@ import { toggleSession } from '../lib/actions.js';
 export const perDayLabel = (h) => (h < 1 ? `${Math.round(h * 60)} мин/день` : `${(Math.round(h * 10) / 10).toString().replace('.', ',')} ч/день`);
 
 function Hero({ g }) {
-  const cur = currentHours(g) + activeMs(g) / 3600000;
+  const cur = currentHours(g) + storyActiveMs(g) / 3600000;
   const hl = hltbHours(g);
   const p = openPt(g);
   const n = timesCompleted(g);

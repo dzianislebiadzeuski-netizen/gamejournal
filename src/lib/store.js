@@ -179,7 +179,7 @@ export function deleteGame(id) {
 function closeActive(g) {
   if (!g.active) return g;
   const end = Date.now();
-  const sessions = end - g.active.t0 > 30000 ? [...g.sessions, { start: g.active.t0, end }] : g.sessions;
+  const sessions = end - g.active.t0 > 30000 ? [...g.sessions, { start: g.active.t0, end, ...(g.active.mode ? { mode: g.active.mode } : {}) }] : g.sessions;
   return { ...g, sessions, active: null };
 }
 
@@ -202,10 +202,16 @@ export function setOpenStart(id, date) {
   });
 }
 
-export function startSession(id) {
+// mode: 'story' | 'net' — only for story+online games; null for the rest
+export function startSession(id, mode = null) {
   updateGame(id, (g) => {
-    let next = { ...g, active: { t0: Date.now() } };
-    if (g.net && g.status !== 'playing') return next; // online part of a story game — story status untouched
+    const m = g.hybrid ? mode || (g.net && g.status !== 'playing' ? 'net' : 'story') : null;
+    let next = { ...g, active: { t0: Date.now(), ...(m ? { mode: m } : {}) } };
+    if (m === 'net') return { ...next, net: true }; // online part — story status untouched, game shows in rotation
+    if (m === 'story' && g.status === 'rotation') {
+      // first story session of a game that was only played online
+      return { ...next, net: true, status: 'playing', statusAt: Date.now(), playthroughs: [...g.playthroughs.filter((p) => p.end || p.old), { start: todayISO(), end: null, hours: null }] };
+    }
     if (g.type === 'online' && (g.status === 'wish' || g.status === 'quit')) {
       next.status = 'rotation';
       next.statusAt = Date.now();
@@ -222,20 +228,20 @@ export function startSession(id) {
 export function stopSession(id) {
   const g = db.games[id];
   if (!g || !g.active) return null;
-  const r = { start: g.active.t0, end: Date.now() };
+  const r = { start: g.active.t0, end: Date.now(), mode: g.active.mode || null };
   updateGame(id, { active: null });
   return r;
 }
 
-export function saveSession(id, start, end) {
+export function saveSession(id, start, end, mode = null) {
   if (end - start < 1000) return;
-  updateGame(id, (g) => ({ ...g, sessions: [...g.sessions, { start, end }].sort((a, b) => a.start - b.start) }));
+  updateGame(id, (g) => ({ ...g, sessions: [...g.sessions, { start, end, ...(mode ? { mode } : {}) }].sort((a, b) => a.start - b.start) }));
 }
 
-export function addManualTime(id, dateISO, ms) {
+export function addManualTime(id, dateISO, ms, mode = null) {
   const [y, m, d] = dateISO.split('-').map(Number);
   const start = new Date(y, m - 1, d, 12, 0, 0).getTime();
-  updateGame(id, (g) => ({ ...g, sessions: [...g.sessions, { start, end: start + ms, manual: true }].sort((a, b) => a.start - b.start) }));
+  updateGame(id, (g) => ({ ...g, sessions: [...g.sessions, { start, end: start + ms, manual: true, ...(mode ? { mode } : {}) }].sort((a, b) => a.start - b.start) }));
 }
 
 export function setStatus(id, status) {
