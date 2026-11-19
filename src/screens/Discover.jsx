@@ -11,14 +11,15 @@ const MODES = [['for', 'Для тебя'], ['hits', 'Хиты'], ['new', 'Нов
 const decks = { for: [], hits: [], new: [] };
 const history = [];
 // set by the mounted Discover screen so the info sheet can act on the top card
-const deckActions = { swipe: () => {}, already: () => {} };
+const deckActions = { swipe: () => {}, already: () => {} }; // already(mode: 'done' | 'dropped')
 const descCache = new Map();
 
-function DeckButtons({ disabled, onSkip, onDone, onLike }) {
+function DeckButtons({ disabled, onSkip, onDone, onDrop, onLike }) {
   return (
     <div class="deck-btns">
       <button class="db skip" aria-label="Мимо" disabled={disabled} onClick={onSkip}><Icon n="x" size={22} sw={2.4} /></button>
-      <button class="db done" aria-label="Уже прошёл" disabled={disabled} onClick={onDone}><Icon n="check" size={20} sw={2.4} /><span>Уже прошёл</span></button>
+      <button class="db done" aria-label="Уже прошёл" disabled={disabled} onClick={onDone}><Icon n="check" size={18} sw={2.4} /><span>Прошёл</span></button>
+      <button class="db drop" aria-label="Уже бросил" disabled={disabled} onClick={onDrop}><Icon n="leave" size={16} sw={2.2} /><span>Бросил</span></button>
       <button class="db like" aria-label="Хочу пройти" disabled={disabled} onClick={onLike}><Icon n="heart" size={22} sw={2} fill="#fff" color="#fff" /></button>
     </div>
   );
@@ -60,7 +61,7 @@ export function DeckInfoSheet({ g }) {
         {err && <span class="small muted">{err}</span>}
         {desc != null && <p class="desc deck-desc">{ru || desc || 'У RAWG нет описания этой игры.'}</p>}
       </div>
-      <DeckButtons onSkip={() => run(() => deckActions.swipe(-1))} onDone={() => run(() => deckActions.already())} onLike={() => run(() => deckActions.swipe(1))} />
+      <DeckButtons onSkip={() => run(() => deckActions.swipe(-1))} onDone={() => run(() => deckActions.already('done'))} onDrop={() => run(() => deckActions.already('dropped'))} onLike={() => run(() => deckActions.swipe(1))} />
     </Sheet>
   );
 }
@@ -219,12 +220,12 @@ export function Discover() {
     force((x) => x + 1);
   };
 
-  const already = () => {
+  const already = (kind = 'done') => {
     const g = deck[0];
     if (!g) return;
     decks[mode] = deck.slice(1);
     markSeen(g);
-    go('addDone', { res: { extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug }, mode: 'done' });
+    go('addDone', { res: { extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug }, mode: kind });
   };
 
   deckActions.swipe = (dir) => setOffset(dir);
@@ -261,7 +262,7 @@ export function Discover() {
                 </div>
               )}
             </div>
-            <DeckButtons disabled={!deck.length} onSkip={() => setOffset(-1)} onDone={already} onLike={() => setOffset(1)} />
+            <DeckButtons disabled={!deck.length} onSkip={() => setOffset(-1)} onDone={() => already('done')} onDrop={() => already('dropped')} onLike={() => setOffset(1)} />
             <div class="center xs muted">Тап — сюжет · влево — мимо · вправо — в «Хочу пройти» · данные: <a href="https://rawg.io">RAWG</a></div>
           </>
         )}

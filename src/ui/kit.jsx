@@ -20,6 +20,7 @@ const P = {
   console: '<rect x="7" y="2.5" width="10" height="19" rx="2.5"/><circle cx="12" cy="7" r="1.6"/><path d="M10 17h4"/>',
   cards: '<rect x="7.5" y="3.5" width="11" height="15" rx="2" transform="rotate(8 13 11)"/><rect x="4.5" y="5" width="11" height="15" rx="2" transform="rotate(-6 10 12.5)"/>',
   undo: '<path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"/>',
+  leave: '<path d="M14 4h4a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-4"/><path d="M10 16l-4-4 4-4M6 12h10"/>',
   pause: '<path d="M9 5v14M15 5v14"/>',
   x: '<path d="M6 6l12 12M18 6L6 18"/>',
   cal: '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/>',

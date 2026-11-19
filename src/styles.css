@@ -387,3 +387,7 @@ textarea.ta:focus { border-color: rgba(108,192,255,0.6); }
 .deck-btns { display: flex; justify-content: center; align-items: center; gap: 16px; }
 .db.skip, .db.like { width: 54px; height: 54px; flex: 0 0 54px; border-radius: 50%; padding: 0; }
 .db.done { padding: 0 24px; font-size: 14px; }
+
+.deck-btns { gap: 8px; }
+.db.done, .db.drop { flex: 1 1 0; max-width: 132px; padding: 0 10px; font-size: 13px; }
+.db.drop { background: rgba(255,61,94,0.12); border: 1px solid rgba(255,61,94,0.4); color: #ffb3c2; }
