@@ -250,7 +250,8 @@ function MoreSheet({ id }) {
         {(s === 'playing' || s === 'paused') && <Row icon="x" danger title="Бросить" sub="уйдёт в «Брошено», часы сохранятся" onClick={() => act('dropped', `${g.name} — в «Брошено»`)} />}
         {s === 'rotation' && <Row icon="x" title="Забросил" sub="убрать из «В ротации»" onClick={() => act('quit', `${g.name} — заброшена`)} />}
         {s === 'quit' && <Row icon="repeat" title="Вернуть в ротацию" onClick={() => act('rotation', `${g.name} — снова в ротации`)} />}
-        {s === 'done' && <Row icon="repeat" title="Перепройти" sub={`начать прохождение №${timesCompleted(g) + 1}`} onClick={() => openSheet('replay', { id })} />}
+        {s === 'done' && <Row icon="repeat" title="Перепройти" sub={`начать прохождение №${timesCompleted(g) + 1} сейчас`} onClick={() => openSheet('replay', { id })} />}
+        {s === 'done' && <Row icon="plus" title="Добавить прохождение" sub="уже было — вписать даты и часы" onClick={() => openSheet('playthroughs', { id, add: true })} />}
         {(s === 'done' || s === 'dropped') && <Row icon="star" title={g.rating ? `Оценка: ${g.rating}/10` : 'Поставить оценку'} sub="изменить" onClick={() => openSheet('rating', { id })} />}
         {(s === 'done' || s === 'dropped') && <Row icon="clock" title="Часы и даты" sub={s === 'done' ? 'поправить часы и даты прохождений' : 'поправить наигранные часы'} onClick={() => openSheet('playthroughs', { id })} />}
         {s === 'dropped' && <Row icon="play" title="Вернуться к игре" sub="снова в «Играю сейчас»" onClick={() => act('playing', `${g.name} — снова в «Играю сейчас»`)} />}
@@ -373,36 +374,59 @@ function ReplaySheet({ id }) {
 }
 
 // ---------- Edit hours & dates of finished playthroughs ----------
-function PlaythroughsSheet({ id }) {
+function PlaythroughsSheet({ id, add }) {
   const g = getGame(id);
-  const [pts, setPts] = useState(g ? completed(g).map((p) => ({ ...p })) : []);
+  const blank = () => {
+    const prev = g ? previousHours(g) : null;
+    return { start: isoAddDays(todayISO(), -14), end: todayISO(), hours: prev || (g && hltbHours(g) ? Math.round(hltbHours(g)) : 10), old: false, isNew: true };
+  };
+  const [pts, setPts] = useState(() => {
+    const list = g ? completed(g).map((p) => ({ ...p })) : [];
+    return add ? [...list, blank()] : list;
+  });
   const [base, setBase] = useState(g ? g.baseHours || 0 : 0);
   if (!g) return null;
   const set = (i, patch) => setPts(pts.map((p, k) => (k === i ? { ...p, ...patch } : p)));
+  const toggleOld = (i) => {
+    const p = pts[i];
+    if (p.old) set(i, { old: false, start: p.start || isoAddDays(todayISO(), -14), end: p.end || todayISO() });
+    else set(i, { old: true });
+  };
   const save = () => {
     const open = (g.playthroughs || []).filter((p) => !p.end && !p.old);
-    updateGame(id, { playthroughs: [...pts.map((p) => ({ ...p, hours: Number(p.hours) || 0 })), ...open], baseHours: Number(base) || 0 });
-    toast('Сохранено');
+    const clean = pts.map(({ isNew, ...p }) => (p.old ? { start: null, end: null, hours: Number(p.hours) || 0, old: true } : { ...p, hours: Number(p.hours) || 0, old: false }));
+    // undated ("давно") first, then by end date
+    clean.sort((a, b) => (a.old ? '' : a.end || '').localeCompare(b.old ? '' : b.end || ''));
+    const patch = { playthroughs: [...clean, ...open], baseHours: Number(base) || 0 };
+    if (g.status !== 'done' && !open.length && clean.length && g.type !== 'online' && g.status !== 'dropped') patch.status = 'done';
+    updateGame(id, patch);
+    toast(pts.some((p) => p.isNew) ? `Прохождение добавлено · теперь ×${clean.length}` : 'Сохранено');
     closeSheet();
   };
   return (
-    <Sheet title="Часы и даты" sub={g.name}>
+    <Sheet title={add ? 'Добавить прохождение' : 'Часы и даты'} sub={g.name}>
       {pts.length === 0 && g.status !== 'dropped' && <Info>У этой игры нет завершённых прохождений.</Info>}
       {pts.map((p, i) => (
-        <div class="pt-row">
-          <div class="between"><b style={{ fontSize: 14 }}>Прохождение №{i + 1}</b>
-            {pts.length > 1 && <button class="link" style={{ color: '#FF8FA3' }} onClick={() => setPts(pts.filter((_, k) => k !== i))}>Удалить</button>}
+        <div class="pt-row" style={p.isNew ? { borderColor: 'rgba(255,120,160,0.45)', background: 'rgba(196,60,180,0.08)' } : {}}>
+          <div class="between"><b style={{ fontSize: 14 }}>Прохождение №{i + 1}{p.isNew ? ' · новое' : ''}</b>
+            {(pts.length > 1 || p.isNew) && <button class="link" style={{ color: '#FF8FA3' }} onClick={() => setPts(pts.filter((_, k) => k !== i))}>Удалить</button>}
           </div>
-          {!p.old && p.start && p.end && (
+          {!p.old && (
             <div class="row" style={{ gap: 10 }}>
-              <Field label="Начал" id={`ps${i}`} type="date" mono value={p.start} max={p.end} onInput={(v) => v && set(i, { start: v })} />
-              <Field label="Закончил" id={`pe${i}`} type="date" mono value={p.end} max={todayISO()} onInput={(v) => v && set(i, { end: v })} />
+              <Field label="Начал" id={`ps${i}`} type="date" mono value={p.start || ''} max={p.end || todayISO()} onInput={(v) => v && set(i, { start: v })} />
+              <Field label="Закончил" id={`pe${i}`} type="date" mono value={p.end || ''} max={todayISO()} onInput={(v) => v && set(i, { end: v })} />
             </div>
           )}
-          {(p.old || !p.end) && <span class="small muted">давно, без дат</span>}
+          <button class="trow" style={{ minHeight: 44, padding: '6px 10px' }} aria-pressed={p.old ? 'true' : 'false'} onClick={() => toggleOld(i)}>
+            <Icon n="cal" size={16} color="#A9B0BD" /><span class="t"><b style={{ fontSize: 13 }}>Давно, без дат</b></span>
+            <span class={`switch ${p.old ? 'on' : ''}`}><i /></span>
+          </button>
           <Stepper id={`ph${i}`} label="Часов" value={p.hours ?? 0} onChange={(v) => set(i, { hours: v })} max={2000} unit="ч" />
         </div>
       ))}
+      {g.type !== 'online' && (
+        <button class="btn btn-glass" style={{ flex: 'none' }} onClick={() => setPts([...pts, blank()])}><Icon n="plus" size={16} sw={2.2} />Ещё прохождение</button>
+      )}
       {(g.status === 'dropped' || base > 0) && (
         <div class="pt-row">
           <b style={{ fontSize: 14 }}>Часы до начала учёта</b>

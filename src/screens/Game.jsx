@@ -116,7 +116,9 @@ function History({ g }) {
   const pts = completed(g);
   if (!pts.length) return null;
   return (
-    <Section title="Прохождения" right={<button class="link" onClick={() => openSheet('playthroughs', { id: g.id })}>Изменить</button>}>
+    <Section title="Прохождения" right={<span class="row" style={{ gap: 14 }}>
+      {g.status === 'done' && <button class="link" onClick={() => openSheet('playthroughs', { id: g.id, add: true })}>+ Добавить</button>}
+      <button class="link" onClick={() => openSheet('playthroughs', { id: g.id })}>Изменить</button></span>}>
       <div class="col" style={{ gap: 0 }}>
         {pts.map((p, i) => (
           <button class="ses ses-btn" aria-label="Изменить прохождение" onClick={() => openSheet('playthroughs', { id: g.id })}>
