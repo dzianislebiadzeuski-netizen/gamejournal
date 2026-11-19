@@ -17,9 +17,9 @@ const descCache = new Map();
 function DeckButtons({ disabled, onSkip, onDone, onLike }) {
   return (
     <div class="deck-btns">
-      <button class="db skip" aria-label="Мимо" disabled={disabled} onClick={onSkip}><Icon n="x" size={20} sw={2.4} /><span>Мимо</span></button>
+      <button class="db skip" aria-label="Мимо" disabled={disabled} onClick={onSkip}><Icon n="x" size={22} sw={2.4} /></button>
       <button class="db done" aria-label="Уже прошёл" disabled={disabled} onClick={onDone}><Icon n="check" size={20} sw={2.4} /><span>Уже прошёл</span></button>
-      <button class="db like" aria-label="Хочу пройти" disabled={disabled} onClick={onLike}><Icon n="heart" size={18} sw={2} fill="#fff" color="#fff" /><span>Хочу</span></button>
+      <button class="db like" aria-label="Хочу пройти" disabled={disabled} onClick={onLike}><Icon n="heart" size={22} sw={2} fill="#fff" color="#fff" /></button>
     </div>
   );
 }

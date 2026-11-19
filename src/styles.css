@@ -383,3 +383,7 @@ textarea.ta:focus { border-color: rgba(108,192,255,0.6); }
 .db.done { background: rgba(138,77,255,0.22); border: 1px solid rgba(165,123,255,0.5); color: #e4d8ff; }
 .deck-desc { max-height: 42vh; overflow-y: auto; }
 .swipe-card { cursor: pointer; }
+
+.deck-btns { display: flex; justify-content: center; align-items: center; gap: 16px; }
+.db.skip, .db.like { width: 54px; height: 54px; flex: 0 0 54px; border-radius: 50%; padding: 0; }
+.db.done { padding: 0 24px; font-size: 14px; }
