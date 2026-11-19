@@ -1,7 +1,7 @@
 import { useStore, go, setLibTab, tab, openSheet } from '../lib/store.js';
 import { Cover, Icon, Nav, Section, Info } from '../ui/kit.jsx';
 import { computeStats } from '../lib/stats.js';
-import { fmtHours, monthName, monthGen, daysWord } from '../lib/util.js';
+import { fmtHours, monthName, monthGen, daysWord, fmtShort } from '../lib/util.js';
 
 const num = (h) => (h < 10 ? (Math.round(h * 10) / 10).toString().replace('.', ',') : String(Math.round(h)));
 
@@ -51,17 +51,21 @@ export function Stats() {
           )) : <span class="small muted">Появятся, когда наберётся несколько игр с жанрами.</span>}
         </div>
 
-        <Section title="Любимые игры" right={s.favs.length ? <button class="link mono" onClick={() => { setLibTab('done'); tab('library'); }}>все {s.favs.length} ♥</button> : null}>
-          {s.favs.length ? (
+        <Section title={`Пройдено в ${s.year}`} right={s.doneYear.length ? <button class="link mono" onClick={() => { setLibTab('done'); tab('library'); }}>все пройденные</button> : null}>
+          {s.doneYear.length ? (
             <div class="grid4">
-              {s.favs.slice(0, 4).map((g) => (
-                <Cover g={g} style={{ aspectRatio: '3 / 4', borderRadius: 12 }}>
-                  <button aria-label={`Открыть: ${g.name}`} onClick={() => go('game', { id: g.id })} style={{ position: 'absolute', inset: 0, background: 'none', border: 'none' }} />
-                  <span class="hb"><Icon n="heart" size={14} sw={1.6} fill="#FF3D5E" color="#FF3D5E" /></span>
-                </Cover>
+              {s.doneYear.map(({ g, times, last }) => (
+                <div class="col" style={{ gap: 5, minWidth: 0 }}>
+                  <Cover g={g} style={{ aspectRatio: '3 / 4', borderRadius: 12 }}>
+                    <button aria-label={`Открыть: ${g.name}`} onClick={() => go('game', { id: g.id })} style={{ position: 'absolute', inset: 0, background: 'none', border: 'none' }} />
+                    {g.fav && <span class="hb"><Icon n="heart" size={14} sw={1.6} fill="#FF3D5E" color="#FF3D5E" /></span>}
+                    {times > 1 && <span class="pf sm" style={{ position: 'absolute', left: 5, bottom: 5, background: 'var(--grad)' }}>×{times}</span>}
+                  </Cover>
+                  <span class="mono xs muted" style={{ textAlign: 'center' }}>{fmtShort(last)}</span>
+                </div>
               ))}
             </div>
-          ) : <Info>Отмечай игры ♥ в их карточке — лучшие соберутся здесь.</Info>}
+          ) : <Info>Здесь соберутся игры, которые ты пройдёшь в {s.year} году.</Info>}
         </Section>
       </div>
       <Nav active="stats" />

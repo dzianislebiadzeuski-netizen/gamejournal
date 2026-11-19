@@ -81,6 +81,15 @@ export function computeStats(games, settings, now = new Date()) {
 
   const favs = games.filter((g) => g.fav).sort((a, b) => (b.rating || 0) - (a.rating || 0));
 
+  // Games finished this year (newest first), with how many times and when.
+  const doneYear = games
+    .map((g) => {
+      const ends = completed(g).filter((p) => p.end && p.end >= yearStart && p.end <= `${y}-12-31`).map((p) => p.end).sort();
+      return ends.length ? { g, times: ends.length, last: ends[ends.length - 1] } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.last.localeCompare(a.last));
+
   return {
     monthHours,
     dayOfMonth,
@@ -89,6 +98,7 @@ export function computeStats(games, settings, now = new Date()) {
     doneThisYear,
     genres,
     favs,
+    doneYear,
     year: y,
     month: m,
     yearStart,
