@@ -20,6 +20,7 @@ export function gameDaily(g, add) {
     const h = (s.end - s.start) / 3600000;
     // a hand-entered period ("играл с 2015 по 2025") is spread over those years
     if (s.period && s.period.from && s.period.to) spread(add, s.period.from, s.period.to, h);
+    else if (h > 24) continue; // a lump of hours without dates — not part of time stats
     else add(todayISO(new Date(s.start)), h);
   }
   if (g.active) add(todayISO(new Date(g.active.t0)), (Date.now() - g.active.t0) / 3600000);

@@ -25,7 +25,8 @@ function Header({ res }) {
 // "Уже прошёл" / "Бросил": dates (or "давно"), hours, rating, impressions.
 export function AddDone({ res, platform, mode = 'done' }) {
   const dropped = mode === 'dropped';
-  const [old, setOld] = useState(false);
+  // dropped: by default hours are undated — they only count into the stats when a period is set
+  const [old, setOld] = useState(dropped);
   const [start, setStart] = useState(isoAddDays(todayISO(), res.online ? -365 : -14));
   const [end, setEnd] = useState(todayISO());
   const [hours, setHours] = useState(5);
@@ -79,6 +80,7 @@ export function AddDone({ res, platform, mode = 'done' }) {
         <>
           <div class="card glass tint">
             <span class="lbl">{res.online ? 'Когда играл' : 'Когда играл и бросил'}</span>
+            <ChipGroup value={old ? 'old' : 'period'} onChange={(v) => setOld(v === 'old')} options={[['old', 'Без дат'], ['period', 'Указать период']]} />
             {!old && (
               <div class="row" style={{ gap: 10 }}>
                 <Field label="Начал" id="d1" type="date" mono value={start} max={end} onInput={(v) => v && setStart(v)} />
@@ -86,9 +88,8 @@ export function AddDone({ res, platform, mode = 'done' }) {
               </div>
             )}
             {old
-              ? <span class="small muted" style={{ fontSize: 13 }}>Без дат: часы попадут в общий счёт игры, но не в статистику по месяцам и годам.</span>
-              : <span class="small muted" style={{ fontSize: 13 }}>Часы распределятся по всему периоду — в статистику года попадёт только его доля.</span>}
-            <ToggleRow on={old} onChange={setOld} icon="cal" title="Давно, не помню даты" sub="не пойдёт в статистику по времени" />
+              ? <span class="small muted" style={{ fontSize: 13 }}>Часы попадут только в общий счёт игры — статистику по месяцам и годам они не тронут.</span>
+              : <span class="small muted" style={{ fontSize: 13 }}>Часы распределятся по всему периоду — в статистику каждого года попадёт только его доля.</span>}
           </div>
           <div class="card glass">
             <Stepper id="h" label="Успел наиграть" value={hours} onChange={setHours} unit="ч" max={20000} />

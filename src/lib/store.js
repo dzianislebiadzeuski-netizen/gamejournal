@@ -45,6 +45,7 @@ let saveTimer = null;
 let lastSavedText = '';
 
 export async function load() {
+  let migrated = false;
   try {
     let text = null;
     if (native) {
@@ -66,12 +67,22 @@ export async function load() {
       lastSavedText = text;
       // v1.3: HLTB time is entered by hand only — drop old automatic values (RAWG averages etc.).
       for (const g of Object.values(db.games)) if (g.hltb && g.hltb.src !== 'manual') delete g.hltb;
+      // v1.4: a hand-entered lump of hours (more than a day, no period) can't belong to one date —
+      // move it to undated hours so it never lands in the stats of a single day / year.
+      for (const g of Object.values(db.games)) {
+        const lump = (g.sessions || []).filter((x) => x.manual && !x.period && x.end - x.start > 24 * 3600000);
+        if (!lump.length) continue;
+        g.baseHours = (g.baseHours || 0) + lump.reduce((a, x) => a + (x.end - x.start) / 3600000, 0);
+        g.sessions = g.sessions.filter((x) => !lump.includes(x));
+        migrated = true;
+      }
     }
   } catch (e) {
     console.error('load failed', e);
   }
   if (!db.settings.onboarded) ui = { ...ui, stack: [{ name: 'onboard' }] };
   emit();
+  if (migrated) writeNow().catch(() => {});
 }
 
 async function writeNow() {
