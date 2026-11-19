@@ -7,6 +7,7 @@ import { Sheet, Icon, ChipGroup, Field, Stepper, Rating, ToggleRow, Info, Cell, 
 import { PLATFORMS, openPt, currentSessionsMs, hltbHours, hltbSearchUrl, timesCompleted, totalHours, STATUS, completed, currentHours, remainingText, diffText } from '../lib/model.js';
 import { todayISO, isoAddDays, fmtHM, fmtTime, fmtDate, fmtHours } from '../lib/util.js';
 import { addFromSearch } from '../lib/actions.js';
+import { DeckInfoSheet } from './Discover.jsx';
 import { coverUrl } from '../lib/catalog.js';
 import { placeholderGradient } from '../lib/util.js';
 
@@ -466,4 +467,5 @@ export const SHEETS = {
   playthroughs: PlaythroughsSheet,
   hltb: HltbSheet,
   session: SessionEditSheet,
+  deckInfo: DeckInfoSheet,
 };

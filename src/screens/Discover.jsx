@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'preact/hooks';
-import { useStore, go, getDb, setDiscover, addGame, deleteGame, findByExt, toast } from '../lib/store.js';
-import { Icon, Nav, Info, PlatformBadge, ChipGroup } from '../ui/kit.jsx';
-import { discover, hasKeys, coverUrl, GENRE_SLUG_BY_RU } from '../lib/catalog.js';
-import { enrich } from '../lib/enrich.js';
+import { useStore, go, getDb, setDiscover, addGame, deleteGame, findByExt, toast, openSheet, closeSheet } from '../lib/store.js';
+import { Icon, Nav, Info, PlatformBadge, ChipGroup, Sheet } from '../ui/kit.jsx';
+import { discover, details, hasKeys, coverUrl, GENRE_SLUG_BY_RU } from '../lib/catalog.js';
+import { enrich, translateToRu } from '../lib/enrich.js';
 import { placeholderGradient } from '../lib/util.js';
 
 const MODES = [['for', 'Для тебя'], ['hits', 'Хиты'], ['new', 'Новинки']];
@@ -10,6 +10,60 @@ const MODES = [['for', 'Для тебя'], ['hits', 'Хиты'], ['new', 'Нов
 // in-memory deck per mode (survives tab switches within a session)
 const decks = { for: [], hits: [], new: [] };
 const history = [];
+// set by the mounted Discover screen so the info sheet can act on the top card
+const deckActions = { swipe: () => {}, already: () => {} };
+const descCache = new Map();
+
+function DeckButtons({ disabled, onSkip, onDone, onLike }) {
+  return (
+    <div class="deck-btns">
+      <button class="db skip" aria-label="Мимо" disabled={disabled} onClick={onSkip}><Icon n="x" size={20} sw={2.4} /><span>Мимо</span></button>
+      <button class="db done" aria-label="Уже прошёл" disabled={disabled} onClick={onDone}><Icon n="check" size={20} sw={2.4} /><span>Уже прошёл</span></button>
+      <button class="db like" aria-label="Хочу пройти" disabled={disabled} onClick={onLike}><Icon n="heart" size={18} sw={2} fill="#fff" color="#fff" /><span>Хочу</span></button>
+    </div>
+  );
+}
+
+// Tap on a card: plot + the same three actions.
+export function DeckInfoSheet({ g }) {
+  const [desc, setDesc] = useState(descCache.get(g.extId) || null);
+  const [err, setErr] = useState('');
+  const [ru, setRu] = useState(null);
+  const [busy, setBusy] = useState(false);
+  useEffect(() => {
+    if (desc != null) return;
+    details(g.extId).then((d) => {
+      const t = (d && d.summaryEn) || '';
+      descCache.set(g.extId, t);
+      setDesc(t);
+    }).catch((e) => setErr(e.message || 'Не получилось загрузить описание'));
+  }, [g.extId]);
+  const translate = async () => {
+    setBusy(true);
+    const r = await translateToRu(desc);
+    setBusy(false);
+    if (r) setRu(r);
+  };
+  const run = (fn) => { closeSheet(); setTimeout(fn, 60); };
+  return (
+    <Sheet title={g.name} sub={[g.year, (g.genres || []).slice(0, 3).join(' · ')].filter(Boolean).join(' · ')}>
+      <div class="row" style={{ flexWrap: 'wrap', gap: 6 }}>
+        {(g.platforms || []).map((p) => <PlatformBadge p={p} small />)}
+        {g.metacritic && <span class="pf sm" style={{ background: 'rgba(255,255,255,0.1)' }}>Metacritic {g.metacritic}</span>}
+      </div>
+      <div class="col" style={{ gap: 8 }}>
+        <div class="between sec-head"><h2 class="sec" style={{ fontSize: 15 }}>Сюжет</h2>
+          {desc && (ru ? <button class="link" onClick={() => setRu(null)}>Показать оригинал</button>
+            : busy ? <span class="spinner" /> : <button class="link" onClick={translate}>Перевести</button>)}
+        </div>
+        {desc == null && !err && <span class="spinner" />}
+        {err && <span class="small muted">{err}</span>}
+        {desc != null && <p class="desc deck-desc">{ru || desc || 'У RAWG нет описания этой игры.'}</p>}
+      </div>
+      <DeckButtons onSkip={() => run(() => deckActions.swipe(-1))} onDone={() => run(() => deckActions.already())} onLike={() => run(() => deckActions.swipe(1))} />
+    </Sheet>
+  );
+}
 
 function favoriteGenreSlugs(games) {
   const score = new Map();
@@ -22,7 +76,7 @@ function favoriteGenreSlugs(games) {
   return [...score.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map(([s]) => s);
 }
 
-function Card({ g, top, onSwipe, offset }) {
+function Card({ g, top, onSwipe, offset, onTap }) {
   const ref = useRef(null);
   const drag = useRef(null);
   const [dx, setDx] = useState(0);
@@ -50,6 +104,12 @@ function Card({ g, top, onSwipe, offset }) {
   const up = () => {
     if (!drag.current) return;
     drag.current = null;
+    if (Math.abs(dx) < 6 && Math.abs(dy) < 6) {
+      setDx(0);
+      setDy(0);
+      onTap && onTap();
+      return;
+    }
     if (Math.abs(dx) > 110) {
       const dir = dx > 0 ? 1 : -1;
       setFly(dir);
@@ -167,6 +227,8 @@ export function Discover() {
     go('addDone', { res: { extId: g.extId, name: g.name, year: g.year, cover: g.cover, genres: g.genres, genreSlugs: g.genreSlugs, slug: g.slug }, mode: 'done' });
   };
 
+  deckActions.swipe = (dir) => setOffset(dir);
+  deckActions.already = already;
   const top2 = deck.slice(0, 2).reverse();
 
   return (
@@ -191,7 +253,7 @@ export function Discover() {
         ) : (
           <>
             <div class="deck">
-              {top2.map((g, i) => <Card key={g.extId} g={g} top={i === top2.length - 1} offset={i === top2.length - 1 ? offset : 0} onSwipe={act} />)}
+              {top2.map((g, i) => <Card key={g.extId} g={g} top={i === top2.length - 1} offset={i === top2.length - 1 ? offset : 0} onSwipe={act} onTap={() => openSheet('deckInfo', { g })} />)}
               {!deck.length && (
                 <div class="deck-empty">
                   {loading ? <span class="spinner" /> : err ? <><span class="small text2">{err}</span><button class="btn btn-glass btn-sm" style={{ flex: 'none' }} onClick={refill}>Ещё раз</button></>
@@ -199,12 +261,8 @@ export function Discover() {
                 </div>
               )}
             </div>
-            <div class="deck-btns">
-              <button class="db skip" aria-label="Мимо" disabled={!deck.length} onClick={() => setOffset(-1)}><Icon n="x" size={26} sw={2.4} /></button>
-              <button class="db done" aria-label="Уже прошёл" disabled={!deck.length} onClick={already}><Icon n="check" size={22} sw={2.4} /><span>Уже прошёл</span></button>
-              <button class="db like" aria-label="Хочу пройти" disabled={!deck.length} onClick={() => setOffset(1)}><Icon n="heart" size={26} sw={2} fill="#fff" color="#fff" /></button>
-            </div>
-            <div class="center xs muted">Влево — мимо · вправо — в «Хочу пройти» · данные: <a href="https://rawg.io">RAWG</a></div>
+            <DeckButtons disabled={!deck.length} onSkip={() => setOffset(-1)} onDone={already} onLike={() => setOffset(1)} />
+            <div class="center xs muted">Тап — сюжет · влево — мимо · вправо — в «Хочу пройти» · данные: <a href="https://rawg.io">RAWG</a></div>
           </>
         )}
       </div>
