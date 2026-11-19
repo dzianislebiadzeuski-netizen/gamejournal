@@ -4,20 +4,47 @@
 import { parseISO, todayISO, isoAddDays, daysBetween } from './util.js';
 import { completed, uncoveredSessions, totalHours, isOnline } from './model.js';
 
+// Hours spread evenly over every day of [from, to].
+function spread(add, from, to, h) {
+  const n = Math.max(1, daysBetween(from, to) + 1);
+  for (let i = 0; i < n; i++) add(isoAddDays(from, i), h / n);
+}
+
+// Calls add(isoDay, hours) for every bit of time recorded for one game.
+export function gameDaily(g, add) {
+  for (const p of completed(g)) {
+    if (p.old || !p.start || !p.end || !p.hours) continue;
+    spread(add, p.start, p.end, p.hours);
+  }
+  for (const s of uncoveredSessions(g)) {
+    const h = (s.end - s.start) / 3600000;
+    // a hand-entered period ("играл с 2015 по 2025") is spread over those years
+    if (s.period && s.period.from && s.period.to) spread(add, s.period.from, s.period.to, h);
+    else add(todayISO(new Date(s.start)), h);
+  }
+  if (g.active) add(todayISO(new Date(g.active.t0)), (Date.now() - g.active.t0) / 3600000);
+}
+
 export function dailyHours(games, { countOnline = true } = {}) {
   const map = new Map();
   const add = (iso, h) => map.set(iso, (map.get(iso) || 0) + h);
   for (const g of games) {
     if (isOnline(g) && !countOnline) continue;
-    for (const p of completed(g)) {
-      if (p.old || !p.start || !p.end || !p.hours) continue;
-      const n = Math.max(1, daysBetween(p.start, p.end) + 1);
-      for (let i = 0; i < n; i++) add(isoAddDays(p.start, i), p.hours / n);
-    }
-    for (const s of uncoveredSessions(g)) add(todayISO(new Date(s.start)), (s.end - s.start) / 3600000);
-    if (g.active) add(todayISO(new Date(g.active.t0)), (Date.now() - g.active.t0) / 3600000);
+    gameDaily(g, add);
   }
   return map;
+}
+
+// Which games make up the hours of a period: [{ g, hours }] sorted by hours.
+export function hoursByGame(games, settings, fromISO, toISO) {
+  const out = [];
+  for (const g of games) {
+    if (isOnline(g) && !settings.countOnline) continue;
+    let h = 0;
+    gameDaily(g, (d, x) => { if (d >= fromISO && d <= toISO) h += x; });
+    if (h >= 1 / 60) out.push({ g, hours: h });
+  }
+  return out.sort((a, b) => b.hours - a.hours);
 }
 
 export function sumRange(map, fromISO, toISO) {
@@ -64,5 +91,8 @@ export function computeStats(games, settings, now = new Date()) {
     favs,
     year: y,
     month: m,
+    yearStart,
+    monthStart,
+    today,
   };
 }

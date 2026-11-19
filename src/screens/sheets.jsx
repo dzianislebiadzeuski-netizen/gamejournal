@@ -1,8 +1,12 @@
 import { useState } from 'preact/hooks';
 import {
   getGame, closeSheet, replace, go, tab, toast, updateGame, deleteGame, setStatus, startPlaythrough, saveSession,
-  addManualTime, setOpenStart, finishPlaythrough, startReplay, previousHours, back, getUi, openSheet,
+  addManualTime, setOpenStart, finishPlaythrough, startReplay, previousHours, back, getUi, openSheet, getDb,
 } from '../lib/store.js';
+import { hoursByGame, computeStats } from '../lib/stats.js';
+import { Cover } from '../ui/kit.jsx';
+import { PtRows, cleanPts } from '../ui/pts.jsx';
+import { monthGen } from '../lib/util.js';
 import { Sheet, Icon, ChipGroup, Field, Stepper, Rating, ToggleRow, Info, Cell, PlatformPicker } from '../ui/kit.jsx';
 import { PLATFORMS, openPt, currentSessionsMs, hltbHours, hltbSearchUrl, timesCompleted, totalHours, STATUS, completed, currentHours, remainingText, diffText } from '../lib/model.js';
 import { todayISO, isoAddDays, fmtHM, fmtTime, fmtDate, fmtHours } from '../lib/util.js';
@@ -163,13 +167,28 @@ function SessionEditSheet({ id, start }) {
   const [h, setH] = useState(Math.floor(dur0 / 3600000));
   const [m, setM] = useState(Math.round((dur0 % 3600000) / 60000));
   const [confirm, setConfirm] = useState(false);
+  const [per, setPer] = useState(!!(s0 && s0.period));
+  const [from, setFrom] = useState(s0 && s0.period ? s0.period.from : todayISO(d0));
+  const [to, setTo] = useState(s0 && s0.period ? s0.period.to : todayISO(d0));
+  const [ph, setPh] = useState(Math.round(dur0 / 360000) / 10);
   if (!g || !s0) return null;
-  const ms = ((Number(h) || 0) * 60 + (Number(m) || 0)) * 60000;
+  const ms = per ? (Number(ph) || 0) * 3600000 : ((Number(h) || 0) * 60 + (Number(m) || 0)) * 60000;
   const save = () => {
-    const [y, mo, d] = date.split('-').map(Number);
-    const [hh, mm] = (time || '12:00').split(':').map(Number);
-    const st = new Date(y, mo - 1, d, hh || 0, mm || 0).getTime();
-    updateGame(id, (x) => ({ ...x, sessions: x.sessions.map((q) => (q.start === start ? { ...q, start: st, end: st + ms } : q)).sort((a, b) => a.start - b.start) }));
+    let st;
+    let extra;
+    if (per) {
+      const a = from <= to ? from : to;
+      const b = from <= to ? to : from;
+      const [y, mo, d] = a.split('-').map(Number);
+      st = new Date(y, mo - 1, d, 12).getTime();
+      extra = { manual: true, period: { from: a, to: b } };
+    } else {
+      const [y, mo, d] = date.split('-').map(Number);
+      const [hh, mm] = (time || '12:00').split(':').map(Number);
+      st = new Date(y, mo - 1, d, hh || 0, mm || 0).getTime();
+      extra = { period: undefined };
+    }
+    updateGame(id, (x) => ({ ...x, sessions: x.sessions.map((q) => (q.start === start ? { ...q, ...extra, start: st, end: st + ms } : q)).sort((a, b) => a.start - b.start) }));
     toast('Сессия обновлена');
     closeSheet();
   };
@@ -179,15 +198,29 @@ function SessionEditSheet({ id, start }) {
     closeSheet();
   };
   return (
-    <Sheet title="Сессия" sub={`${g.name} · ${fmtHM(dur0)}`}>
-      <div class="row" style={{ gap: 10 }}>
-        <Field label="Дата" id="sd" type="date" mono value={date} max={todayISO()} onInput={(v) => v && setDate(v)} />
-        <Field label="Начало" id="st" type="time" mono value={time} onInput={(v) => v && setTime(v)} />
-      </div>
-      <div class="row" style={{ gap: 10 }}>
-        <Stepper id="eh" label="Часы" value={h} onChange={setH} max={23} unit="ч" />
-        <Stepper id="em" label="Минуты" value={m} onChange={setM} step={5} max={59} unit="м" />
-      </div>
+    <Sheet title={per ? 'Период' : 'Сессия'} sub={`${g.name} · ${fmtHM(dur0)}`}>
+      {per ? (
+        <>
+          <div class="row" style={{ gap: 10 }}>
+            <Field label="Начал" id="pf" type="date" mono value={from} max={to} onInput={(v) => v && setFrom(v)} />
+            <Field label="Закончил" id="pt" type="date" mono value={to} max={todayISO()} onInput={(v) => v && setTo(v)} />
+          </div>
+          <Stepper id="ph" label="Часов за период" value={ph} onChange={setPh} max={20000} unit="ч" />
+          <span class="small muted" style={{ fontSize: 13 }}>Часы распределяются по всем дням периода — в статистику года попадает только его доля.</span>
+        </>
+      ) : (
+        <>
+          <div class="row" style={{ gap: 10 }}>
+            <Field label="Дата" id="sd" type="date" mono value={date} max={todayISO()} onInput={(v) => v && setDate(v)} />
+            <Field label="Начало" id="st" type="time" mono value={time} onInput={(v) => v && setTime(v)} />
+          </div>
+          <div class="row" style={{ gap: 10 }}>
+            <Stepper id="eh" label="Часы" value={h} onChange={setH} max={23} unit="ч" />
+            <Stepper id="em" label="Минуты" value={m} onChange={setM} step={5} max={59} unit="м" />
+          </div>
+        </>
+      )}
+      {(s0.manual || s0.period) && <ToggleRow on={per} onChange={(v) => { if (v && !s0.period) setPh(Math.round(dur0 / 360000) / 10); setPer(v); }} icon="cal" title="Играл в течение периода" sub="например, с 2015 по 2025 — часы растянутся на эти годы" />}
       <button class="btn btn-primary" style={{ flex: 'none' }} disabled={ms <= 0} onClick={save}><Icon n="check" size={18} sw={2.2} />Сохранить · {fmtHM(ms)}</button>
       {!confirm
         ? <button class="btn btn-danger" style={{ flex: 'none' }} onClick={() => setConfirm(true)}><Icon n="trash" size={16} sw={2} />Удалить сессию</button>
@@ -391,17 +424,9 @@ function PlaythroughsSheet({ id, add }) {
   });
   const [base, setBase] = useState(g ? g.baseHours || 0 : 0);
   if (!g) return null;
-  const set = (i, patch) => setPts(pts.map((p, k) => (k === i ? { ...p, ...patch } : p)));
-  const toggleOld = (i) => {
-    const p = pts[i];
-    if (p.old) set(i, { old: false, start: p.start || isoAddDays(todayISO(), -14), end: p.end || todayISO() });
-    else set(i, { old: true });
-  };
   const save = () => {
     const open = (g.playthroughs || []).filter((p) => !p.end && !p.old);
-    const clean = pts.map(({ isNew, ...p }) => (p.old ? { start: null, end: null, hours: Number(p.hours) || 0, old: true } : { ...p, hours: Number(p.hours) || 0, old: false }));
-    // undated ("давно") first, then by end date
-    clean.sort((a, b) => (a.old ? '' : a.end || '').localeCompare(b.old ? '' : b.end || ''));
+    const clean = cleanPts(pts);
     const patch = { playthroughs: [...clean, ...open], baseHours: Number(base) || 0 };
     if (g.status !== 'done' && !open.length && clean.length && g.type !== 'online' && g.status !== 'dropped') patch.status = 'done';
     updateGame(id, patch);
@@ -411,24 +436,7 @@ function PlaythroughsSheet({ id, add }) {
   return (
     <Sheet title={add ? 'Добавить прохождение' : 'Часы и даты'} sub={g.name}>
       {pts.length === 0 && g.status !== 'dropped' && <Info>У этой игры нет завершённых прохождений.</Info>}
-      {pts.map((p, i) => (
-        <div class="pt-row" style={p.isNew ? { borderColor: 'rgba(255,120,160,0.45)', background: 'rgba(196,60,180,0.08)' } : {}}>
-          <div class="between"><b style={{ fontSize: 14 }}>Прохождение №{i + 1}{p.isNew ? ' · новое' : ''}</b>
-            {(pts.length > 1 || p.isNew) && <button class="link" style={{ color: '#FF8FA3' }} onClick={() => setPts(pts.filter((_, k) => k !== i))}>Удалить</button>}
-          </div>
-          {!p.old && (
-            <div class="row" style={{ gap: 10 }}>
-              <Field label="Начал" id={`ps${i}`} type="date" mono value={p.start || ''} max={p.end || todayISO()} onInput={(v) => v && set(i, { start: v })} />
-              <Field label="Закончил" id={`pe${i}`} type="date" mono value={p.end || ''} max={todayISO()} onInput={(v) => v && set(i, { end: v })} />
-            </div>
-          )}
-          <button class="trow" style={{ minHeight: 44, padding: '6px 10px' }} aria-pressed={p.old ? 'true' : 'false'} onClick={() => toggleOld(i)}>
-            <Icon n="cal" size={16} color="#A9B0BD" /><span class="t"><b style={{ fontSize: 13 }}>Давно, без дат</b></span>
-            <span class={`switch ${p.old ? 'on' : ''}`}><i /></span>
-          </button>
-          <Stepper id={`ph${i}`} label="Часов" value={p.hours ?? 0} onChange={(v) => set(i, { hours: v })} max={2000} unit="ч" />
-        </div>
-      ))}
+      <PtRows pts={pts} setPts={setPts} />
       {g.type !== 'online' && (
         <button class="btn btn-glass" style={{ flex: 'none' }} onClick={() => setPts([...pts, blank()])}><Icon n="plus" size={16} sw={2.2} />Ещё прохождение</button>
       )}
@@ -483,7 +491,41 @@ function ImpressionsSheet({ id }) {
   );
 }
 
+// ---------- What the hours of a year / month are made of ----------
+function StatHoursSheet({ period = 'year' }) {
+  const db = getDb();
+  const games = Object.values(db.games);
+  const st = computeStats(games, db.settings);
+  const from = period === 'year' ? st.yearStart : st.monthStart;
+  const list = hoursByGame(games, db.settings, from, st.today);
+  const total = list.reduce((a, x) => a + x.hours, 0);
+  const max = Math.max(1e-9, ...list.map((x) => x.hours));
+  const title = period === 'year' ? `Часы за ${st.year}` : `Часы с 1 ${monthGen(st.month)}`;
+  return (
+    <Sheet title={title} sub={list.length ? `${fmtHours(total)} · ${list.length} ${list.length % 10 === 1 && list.length % 100 !== 11 ? 'игра' : list.length % 10 >= 2 && list.length % 10 <= 4 && (list.length % 100 < 10 || list.length % 100 >= 20) ? 'игры' : 'игр'}` : 'Пока пусто'}>
+      {!list.length && <Info>За этот период нет ни сессий, ни прохождений с датами.</Info>}
+      <div class="col" style={{ gap: 6 }}>
+        {list.map(({ g, hours }) => (
+          <button class="hrow" onClick={() => { closeSheet(); go('game', { id: g.id }); }} aria-label={`${g.name}, ${fmtHours(hours)}`}>
+            <Cover g={g} size="small" label={false} style={{ width: 40, height: 54, borderRadius: 9, flex: 'none' }} />
+            <span class="col" style={{ gap: 6, flex: 1, minWidth: 0 }}>
+              <span class="between" style={{ gap: 10 }}>
+                <b class="ell" style={{ fontSize: 14 }}>{g.name}</b>
+                <span class="mono" style={{ fontWeight: 600, fontSize: 14, flex: 'none' }}>{fmtHours(hours)}</span>
+              </span>
+              <span class="tr"><i style={{ width: `${(hours / max) * 100}%` }} /></span>
+              <span class="xs muted">{STATUS[g.status]}{total ? ` · ${Math.round((hours / total) * 100)}%` : ''}</span>
+            </span>
+          </button>
+        ))}
+      </div>
+      {!db.settings.countOnline && <span class="xs muted">Сетевые игры не учитываются — это переключается в настройках.</span>}
+    </Sheet>
+  );
+}
+
 export const SHEETS = {
+  statHours: StatHoursSheet,
   add: AddSheet,
   start: StartSheet,
   sessionEnd: SessionEndSheet,

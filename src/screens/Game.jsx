@@ -4,7 +4,7 @@ import { Cover, Icon, Status, Section, Cell, Info, ToggleRow, useTick, Back, Pla
 import {
   timesCompleted, totalHours, currentHours, hltbHours, remainingText, diffText, openPt, completed, activeMs, daysSince, isOnline, lastCompleted,
 } from '../lib/model.js';
-import { fmtHours, fmtDate, fmtClock, fmtTime, relDay, todayISO, fmtHM, placeholderGradient, monthName } from '../lib/util.js';
+import { fmtHours, fmtDate, fmtClock, fmtTime, relDay, todayISO, fmtHM, placeholderGradient, monthName, periodLabel } from '../lib/util.js';
 import { toggleSession, toggleFav, addSimilarToWish, removeFromWish } from '../lib/actions.js';
 import { enrich, translateGame } from '../lib/enrich.js';
 import { coverUrl, sourceUrl } from '../lib/catalog.js';
@@ -36,8 +36,8 @@ function Sessions({ g }) {
           {list.map((s) => (
             <button class="ses ses-btn" aria-label="Изменить сессию" onClick={() => openSheet('session', { id: g.id, start: s.start })}>
               <Icon n="clock" size={16} color="#8C93A1" />
-              <span style={{ flex: 1, fontWeight: 600, textAlign: 'left' }}>{relDay(todayISO(new Date(s.start)))}
-                <span class="mono xs muted" style={{ marginLeft: 8 }}>{s.manual ? 'вручную' : `${fmtTime(s.start)}–${fmtTime(s.end)}`}</span>
+              <span style={{ flex: 1, fontWeight: 600, textAlign: 'left' }}>{s.period ? periodLabel(s.period.from, s.period.to) : relDay(todayISO(new Date(s.start)))}
+                <span class="mono xs muted" style={{ marginLeft: 8 }}>{s.period ? 'период' : s.manual ? 'вручную' : `${fmtTime(s.start)}–${fmtTime(s.end)}`}</span>
               </span>
               <span class="mono" style={{ fontWeight: 600 }}>{fmtHM(s.end - s.start)}</span>
               <Icon n="chev" size={14} sw={2} color="#8C93A1" />
@@ -282,7 +282,7 @@ export function Game({ id }) {
       <div class="card glass"><div class="stats3">
         <Cell l={monthName(now.getMonth())} v={fmtHours(month)} />
         <Cell l={String(now.getFullYear())} v={fmtHours(year)} s="за год" />
-        <Cell l="Всего" v={fmtHours(total)} s={`с ${fmtDate(todayISO(new Date(g.addedAt)), true)}`} />
+        <Cell l="Всего" v={fmtHours(total)} s={g.baseHours ? 'за всё время' : `с ${fmtDate(todayISO(new Date(Math.min(g.addedAt || Date.now(), ...(g.sessions || []).map((x) => x.start)))), true)}`} />
       </div></div>
     );
     actions = s === 'rotation'

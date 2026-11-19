@@ -1,7 +1,8 @@
 import { useRef, useState } from 'preact/hooks';
 import { back, replace, addGame, toast, updateGame } from '../lib/store.js';
 import { Icon, Back, Field, Stepper, Rating, ToggleRow, ChipGroup, Info, PlatformPicker } from '../ui/kit.jsx';
-import { todayISO, placeholderGradient } from '../lib/util.js';
+import { todayISO, isoAddDays, placeholderGradient } from '../lib/util.js';
+import { PtRows, cleanPts } from '../ui/pts.jsx';
 import { coverUrl } from '../lib/catalog.js';
 import { enrich, saveCoverBase64 } from '../lib/enrich.js';
 
@@ -25,10 +26,10 @@ function Header({ res }) {
 export function AddDone({ res, platform, mode = 'done' }) {
   const dropped = mode === 'dropped';
   const [old, setOld] = useState(false);
-  const [start, setStart] = useState(todayISO(new Date(Date.now() - 14 * 86400000)));
+  const [start, setStart] = useState(isoAddDays(todayISO(), res.online ? -365 : -14));
   const [end, setEnd] = useState(todayISO());
-  const [hours, setHours] = useState(dropped ? 5 : 20);
-  const [times, setTimes] = useState(1);
+  const [hours, setHours] = useState(5);
+  const [pts, setPts] = useState([{ start: isoAddDays(todayISO(), -14), end: todayISO(), hours: 20, old: false }]);
   const [rating, setRating] = useState(null);
   const [imp, setImp] = useState('');
   const [fav, setFav] = useState(false);
@@ -37,26 +38,24 @@ export function AddDone({ res, platform, mode = 'done' }) {
 
   const save = async () => {
     const h = Number(hours) || 0;
+    const from = start <= end ? start : end;
     const hlv = Number(String(hl).replace(',', '.')) || 0;
     const { coverData, online, ...rest } = res;
     let data;
     if (dropped) {
-      const [y, m, d] = end.split('-').map(Number);
-      const t = new Date(y, m - 1, d, 12).getTime();
+      const noon = (iso) => { const [y, m, d] = iso.split('-').map(Number); return new Date(y, m - 1, d, 12).getTime(); };
+      const t0 = noon(from);
       data = {
         status: online ? 'quit' : 'dropped',
         type: online ? 'online' : 'game',
-        statusAt: old ? Date.now() : t,
+        statusAt: old ? Date.now() : noon(end),
         baseHours: old ? h : 0,
-        sessions: !old && h > 0 ? [{ start: t, end: t + h * 3600000, manual: true }] : [],
+        // hours are spread over the whole period in the stats (2015–2025 stays out of 2026)
+        sessions: !old && h > 0 ? [{ start: t0, end: t0 + h * 3600000, manual: true, period: { from, to: end } }] : [],
         playthroughs: [],
       };
     } else {
-      const n = Math.max(1, Number(times) || 1);
-      const pts = [];
-      for (let k = 0; k < n - 1; k++) pts.push({ start: null, end: null, hours: h, old: true });
-      pts.push(old ? { start: null, end: null, hours: h, old: true } : { start, end, hours: h, old: false });
-      data = { status: 'done', playthroughs: pts, replay: rp };
+      data = { status: 'done', playthroughs: cleanPts(pts), replay: rp };
     }
     const g = addGame({ ...rest, extId: res.extId || undefined, type: online && dropped ? 'online' : 'game', platform: platform || '', rating, impressions: imp.trim(), fav, ...data, ...(hlv > 0 ? { hltb: { main: Math.round(hlv * 10) / 10, src: 'manual' } } : {}) });
     if (coverData) {
@@ -64,7 +63,7 @@ export function AddDone({ res, platform, mode = 'done' }) {
       if (patch) updateGame(g.id, patch);
     }
     if (g.extId) enrich(g.id);
-    toast(`${g.name} — в «${dropped ? 'Брошено' : 'Пройдено'}»`);
+    toast(dropped ? `${g.name} — в «${online ? 'Забросил' : 'Брошено'}»` : `${g.name} — в «Пройдено»${pts.length > 1 ? ` · ×${pts.length}` : ''}`);
     replace('game', { id: g.id });
   };
 
@@ -76,26 +75,41 @@ export function AddDone({ res, platform, mode = 'done' }) {
         <span style={{ width: 44 }} />
       </div>
       <Header res={{ ...res, platform }} />
-      <div class="card glass tint">
-        <span class="lbl">{dropped ? 'Когда бросил' : 'Даты прохождения'}</span>
-        {!old && (dropped ? (
-          <Field label="Дата" id="d2" type="date" mono value={end} max={todayISO()} onInput={(v) => v && setEnd(v)} />
-        ) : (
-          <div class="row" style={{ gap: 10 }}>
-            <Field label="Начал" id="d1" type="date" mono value={start} max={end} onInput={(v) => v && setStart(v)} />
-            <Field label="Закончил" id="d2" type="date" mono value={end} max={todayISO()} onInput={(v) => v && setEnd(v)} />
+      {dropped ? (
+        <>
+          <div class="card glass tint">
+            <span class="lbl">{res.online ? 'Когда играл' : 'Когда играл и бросил'}</span>
+            {!old && (
+              <div class="row" style={{ gap: 10 }}>
+                <Field label="Начал" id="d1" type="date" mono value={start} max={end} onInput={(v) => v && setStart(v)} />
+                <Field label={res.online ? 'Забросил' : 'Бросил'} id="d2" type="date" mono value={end} max={todayISO()} onInput={(v) => v && setEnd(v)} />
+              </div>
+            )}
+            {old
+              ? <span class="small muted" style={{ fontSize: 13 }}>Без дат: часы попадут в общий счёт игры, но не в статистику по месяцам и годам.</span>
+              : <span class="small muted" style={{ fontSize: 13 }}>Часы распределятся по всему периоду — в статистику года попадёт только его доля.</span>}
+            <ToggleRow on={old} onChange={setOld} icon="cal" title="Давно, не помню даты" sub="не пойдёт в статистику по времени" />
           </div>
-        ))}
-        {old && <span class="small muted" style={{ fontSize: 13 }}>Без даты: часы попадут в общий счёт игры, но не в статистику по месяцам и годам.</span>}
-        <ToggleRow on={old} onChange={setOld} icon="cal" title="Давно, не помню дату" sub="не пойдёт в статистику по времени" />
-      </div>
-      <div class="card glass">
-        <div class="row" style={{ gap: 10 }}>
-          <Stepper id="h" label={dropped ? 'Успел наиграть' : 'Часов'} value={hours} onChange={setHours} unit="ч" max={2000} />
-          {!dropped && <Stepper id="n" label="Раз пройдено" value={times} onChange={setTimes} min={1} max={50} unit="×" />}
-        </div>
-        {!(dropped && res.online) && <Field label="HLTB · основной сюжет, часов (можно потом)" id="hlt" mono value={hl} onInput={setHl} placeholder="например, 28" suffix="ч" inputMode="decimal" />}
-      </div>
+          <div class="card glass">
+            <Stepper id="h" label="Успел наиграть" value={hours} onChange={setHours} unit="ч" max={20000} />
+            {!res.online && <Field label="HLTB · основной сюжет, часов (можно потом)" id="hlt" mono value={hl} onInput={setHl} placeholder="например, 28" suffix="ч" inputMode="decimal" />}
+          </div>
+        </>
+      ) : (
+        <>
+          <div class="between sec-head" style={{ marginBottom: -4 }}>
+            <h2 class="sec">Прохождения</h2>
+            <span class="xs muted">каждое со своими датами</span>
+          </div>
+          <PtRows pts={pts} setPts={setPts} />
+          <button class="btn btn-glass" style={{ flex: 'none' }} onClick={() => { const last = pts[pts.length - 1]; setPts([...pts, { start: isoAddDays(todayISO(), -14), end: todayISO(), hours: Number(last && last.hours) || 20, old: false }]); }}>
+            <Icon n="plus" size={16} sw={2.2} />Ещё прохождение
+          </button>
+          <div class="card glass">
+            <Field label="HLTB · основной сюжет, часов (можно потом)" id="hlt" mono value={hl} onInput={setHl} placeholder="например, 28" suffix="ч" inputMode="decimal" />
+          </div>
+        </>
+      )}
       <div class="card glass">
         <div class="between"><span class="lbl">Оценка</span><span class="mono xs muted">1–10, можно не ставить</span></div>
         <Rating value={rating} onChange={setRating} />

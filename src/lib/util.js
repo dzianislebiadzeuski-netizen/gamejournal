@@ -116,3 +116,12 @@ export function placeholderGradient(seed = '') {
   const hue = h % 360;
   return `linear-gradient(160deg, hsl(${hue} 35% 12%), hsl(${(hue + 30) % 360} 40% 30%) 55%, hsl(${(hue + 60) % 360} 45% 55%))`;
 }
+
+// "2015 – 2025" or "12 мар – 4 апр" for a hand-entered period.
+export function periodLabel(from, to) {
+  if (!from || !to) return '';
+  const a = parseISO(from), b = parseISO(to);
+  if (a.getFullYear() !== b.getFullYear()) return `${a.getFullYear()} – ${b.getFullYear()}`;
+  if (from === to) return fmtShort(from);
+  return `${fmtShort(from)} – ${fmtShort(to)}`;
+}

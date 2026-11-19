@@ -391,3 +391,11 @@ textarea.ta:focus { border-color: rgba(108,192,255,0.6); }
 .deck-btns { gap: 8px; }
 .db.done, .db.drop { flex: 1 1 0; max-width: 132px; padding: 0 10px; font-size: 13px; }
 .db.drop { background: rgba(255,61,94,0.12); border: 1px solid rgba(255,61,94,0.4); color: #ffb3c2; }
+
+/* hours breakdown */
+.hrow { display: flex; align-items: center; gap: 12px; padding: 8px; margin: 0 -8px; border-radius: 14px; background: none; border: none; color: inherit; text-align: left; }
+.hrow:active { background: rgba(255,255,255,0.06); }
+.hrow .tr { display: block; height: 5px; border-radius: 3px; background: rgba(255,255,255,0.08); overflow: hidden; }
+.hrow .tr i { display: block; height: 100%; border-radius: 3px; background: var(--grad); }
+.ell { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tap-card { text-align: left; color: inherit; font: inherit; }

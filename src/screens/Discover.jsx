@@ -98,23 +98,32 @@ function Card({ g, top, onSwipe, offset, onTap }) {
 
   const down = (e) => {
     if (!top || fly) return;
-    drag.current = { x: e.clientX, y: e.clientY };
-    ref.current.setPointerCapture(e.pointerId);
+    drag.current = { x: e.clientX, y: e.clientY, t: Date.now(), max: 0, dx: 0 };
+    try { ref.current.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
   };
   const move = (e) => {
-    if (!drag.current) return;
-    setDx(e.clientX - drag.current.x);
-    setDy(e.clientY - drag.current.y);
+    const d = drag.current;
+    if (!d) return;
+    const mx = e.clientX - d.x;
+    const my = e.clientY - d.y;
+    d.dx = mx;
+    d.max = Math.max(d.max, Math.hypot(mx, my));
+    // ignore finger jitter so a tap anywhere on the card stays a tap
+    if (d.max < 12) return;
+    setDx(mx);
+    setDy(my);
   };
-  const up = () => {
-    if (!drag.current) return;
+  const up = (e) => {
+    const d = drag.current;
+    if (!d) return;
     drag.current = null;
-    if (Math.abs(dx) < 6 && Math.abs(dy) < 6) {
+    if (d.max < 12 && e && e.type === 'pointerup' && Date.now() - d.t < 700) {
       setDx(0);
       setDy(0);
       onTap && onTap();
       return;
     }
+    const dx = d.dx;
     if (Math.abs(dx) > 110) {
       const dir = dx > 0 ? 1 : -1;
       setFly(dir);

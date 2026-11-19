@@ -1,4 +1,4 @@
-import { useStore, go, setLibTab, tab } from '../lib/store.js';
+import { useStore, go, setLibTab, tab, openSheet } from '../lib/store.js';
 import { Cover, Icon, Nav, Section, Info } from '../ui/kit.jsx';
 import { computeStats } from '../lib/stats.js';
 import { fmtHours, monthName, monthGen, daysWord } from '../lib/util.js';
@@ -20,20 +20,20 @@ export function Stats() {
           </div>
         </div>
 
-        <div class="card glass tint-r" style={{ gap: 6, padding: 18, borderRadius: 24 }}>
-          <span class="text2" style={{ fontSize: 13, fontWeight: 600 }}>В день вы играете</span>
+        <button class="card glass tint-r tap-card" style={{ gap: 6, padding: 18, borderRadius: 24 }} onClick={() => openSheet('statHours', { period: 'month' })}>
+          <span class="between" style={{ width: '100%' }}><span class="text2" style={{ fontSize: 13, fontWeight: 600 }}>В день вы играете</span><Icon n="chev" size={14} sw={2} color="#8C93A1" /></span>
           <div class="row" style={{ alignItems: 'baseline' }}>
             <span class="mono" style={{ fontSize: 56, fontWeight: 600, lineHeight: 1, letterSpacing: '-0.02em' }}>{num(s.perDay)}</span>
             <span style={{ fontFamily: 'var(--unb)', fontSize: 18, color: '#FF9AB4' }}>ч</span>
           </div>
           <span class="mono xs muted">{fmtHours(s.monthHours)} за {daysWord(s.dayOfMonth)} {monthGen(s.month)}</span>
-        </div>
+        </button>
 
         <div class="stats2" style={{ gap: 10 }}>
-          <div class="card glass tint" style={{ gap: 4, padding: '14px 16px', borderRadius: 20 }}>
-            <span class="text2" style={{ fontSize: 12, fontWeight: 600 }}>Часы за {s.year}</span>
+          <button class="card glass tint tap-card" style={{ gap: 4, padding: '14px 16px', borderRadius: 20 }} onClick={() => openSheet('statHours', { period: 'year' })}>
+            <span class="between" style={{ width: '100%' }}><span class="text2" style={{ fontSize: 12, fontWeight: 600 }}>Часы за {s.year}</span><Icon n="chev" size={13} sw={2} color="#8C93A1" /></span>
             <span class="mono" style={{ fontSize: 28, fontWeight: 600 }}>{Math.round(s.yearHours)}</span>
-          </div>
+          </button>
           <button class="card glass tint" style={{ gap: 4, padding: '14px 16px', borderRadius: 20, textAlign: 'left', color: 'inherit' }} onClick={() => { setLibTab('done'); tab('library'); }}>
             <span class="text2" style={{ fontSize: 12, fontWeight: 600 }}>Пройдено в {s.year}</span>
             <span class="mono" style={{ fontSize: 28, fontWeight: 600 }}>{s.doneThisYear}</span>
